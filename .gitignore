@@ -1,0 +1,22 @@
+# Dependencies / build
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets
+.env
+rates.env
+
+# Runtime / local
+*.log
+logs/
+enter_trace.log
+data/channel_online.txt
+channel_online.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
