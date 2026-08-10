@@ -73,6 +73,38 @@ npm start
 
 Create a character in-game after logging in.
 
+## GM commands
+
+GM accounts (`gm > 0` in the database) can run commands in-game chat. Every command must start with `//` followed by a letter (e.g. `//heal`, not bare `//`).
+
+| Command | Description |
+|---------|-------------|
+| `//notice <text>` or `//1 <text>` | Broadcast a server notice to all online players |
+| `//heal` | Restore HP and MP to maximum |
+| `//hp [value]` | Set HP and max HP to `value` (1–32767). No argument = full heal |
+| `//mp [value]` | Set MP and max MP to `value` (1–32767). No argument = full restore |
+| `//money [amount]` | Add gold (default `10000`) |
+| `//level <1-99>` | Set character level |
+| `//levelup` | Increase level by 1 |
+| `//warp <map> <region> [x] [y]` | Warp to map coordinates (defaults: map `1`, region `1`, x/y `100`) |
+| `//gogo <map> <region>` | Warp to map/region and keep current X/Y |
+| `//warp <playerName>` | Warp to an online player by name |
+| `//job <0-3>` | Set 1st job (`0` beginner, `1` warrior, `2` assassin, `3` mage). Clears 2nd job, faction, and advanced skills |
+| `//job2 <0\|1\|2>` | Set 2nd job path: `1` Order, `2` Chaos. `0` clears 2nd job and faction |
+| `//faction <0\|1\|2>` | Set faction (`1` Order, `2` Chaos) and matching 2nd-job title. `0` clears |
+| `//skills` | Unlock all skills for current job / path / faction |
+| `//maxskills` | Set all owned skills to max level |
+| `//item <itemId> [qty]` | Add item to inventory (default item `8810011`, qty `1`) |
+| `//ban <playerName>` | Disconnect an online player |
+
+**Job paths** (after `//job 1|2|3`):
+
+| 1st job | Order (`//job2 1`) | Chaos (`//job2 2`) |
+|---------|--------------------|--------------------|
+| Warrior (`1`) | Knight | Dark Knight |
+| Assassin (`2`) | Ninja | Killer |
+| Mage (`3`) | White Mage | Black Mage |
+
 ## Configuration
 
 | Item | Details |
@@ -98,3 +130,4 @@ rates.json
 
 - Unknown usernames auto-register on login.
 - `data/client/` holds proprietary game assets required for server-side validation. Redistribute only if you have the rights to do so.
+- Existing databases imported before the cash shop cleanup should run `database/migrations/002_prune_incompatible_cash_shop.sql` once.

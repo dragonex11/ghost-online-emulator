@@ -10,6 +10,7 @@ import {
   CHAR_SLOTS,
   CHAR_SLOT_BYTES,
   NEW_CHAR_SOUL_ITEM_ID,
+  OP_CHARSTATUS_REQ,
   OP_CHARSTATUS,
   OP_CREATE_ACK,
   OP_CREATE_CHAR,
@@ -235,7 +236,7 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
   );
   logPkt("IN", `channel op=${op.toString(16)}`, pkt);
 
-  if (op === OP_CHARSTATUS) {
+  if (op === OP_CHARSTATUS_REQ) {
     // Future: age-verified channels reject via GAME_ACK status 0x1C.
     // PVP / Guild War (ch 10) are field/channel rules, not SERVERLIST flags — see login/server.ts.
     const aid = await getAccountId(pkt);

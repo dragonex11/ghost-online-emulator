@@ -7,8 +7,9 @@ export const CHAR_SLOT_BYTES = 88;
 /** Default soul equip for new characters. */
 export const NEW_CHAR_SOUL_ITEM_ID = 8_510_011;
 
-/** Channel opcodes */
-export const OP_CHARSTATUS = 0x0008;
+/** Channel opcodes — client requests char list with 0x0008; server replies with 0x0009. */
+export const OP_CHARSTATUS_REQ = 0x0008;
+export const OP_CHARSTATUS = 0x0009;
 export const OP_CREATE_CHAR = 0x000a;
 export const OP_CREATE_ACK = 0x000b;
 export const OP_CHECK_NAME = 0x000c;
