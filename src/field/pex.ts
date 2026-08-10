@@ -6,7 +6,7 @@ type PexGrid = {
   h: number;
   wcols: number;
   mapW: number;
-  /** York/thpspx expanded grid (Width*33); index X via X+X/32+1 */
+  /** Expanded grid (Width*33); index X via X+X/32+1 */
   expanded: boolean;
   data: Buffer;
 };
@@ -29,7 +29,7 @@ function loadPex(map: number, region: number): PexGrid | undefined {
   const mapW = raw.readInt32LE(8);
   const grid = raw.subarray(12);
   if (h <= 0 || wcols <= 0 || mapW <= 0 || grid.length < h * wcols) return undefined;
-  // York: wcols = Width*33, mapW = Width*32  →  wcols ≈ mapW + mapW/32
+  // wcols = Width*33, mapW = Width*32  →  wcols ≈ mapW + mapW/32
   const expectExp = mapW + Math.floor(mapW / 32);
   const expanded = Math.abs(wcols - expectExp) <= 2 || Math.abs(wcols - (expectExp + 1)) <= 2;
   const g: PexGrid = { h, wcols, mapW, expanded, data: grid };
@@ -49,7 +49,7 @@ function sByte(v: number): number {
   return v > 127 ? v - 256 : v;
 }
 
-/** York Map.GetMapPexel column (expanded) or legacy scaled fallback. */
+/** Map.GetMapPexel column (expanded) or legacy scaled fallback. */
 function colForX(g: PexGrid, x: number): number {
   if (g.expanded) return x + Math.floor(x / 32) + 1;
   if (g.mapW <= 1) return 0;
@@ -63,7 +63,7 @@ function pexGet(g: PexGrid, x: number, y: number): number {
   return sByte(g.data[y2 * g.wcols + x2]!);
 }
 
-/** York Map.GetPexInfo — coarser X for wall flag (value 4). */
+/** Map.GetPexInfo — coarser X for wall flag (value 4). */
 function pexInfo(g: PexGrid, x: number, y: number): number {
   const y2 = Math.floor(y / 32);
   let x2: number;
@@ -82,7 +82,7 @@ export function mapWidthPx(map: number, region: number): number {
   return g?.mapW ?? 6400;
 }
 
-/** York spawn Y fix — walk down from void until solid cell. */
+/** Spawn Y fix — walk down from void until solid cell. */
 export function snapMonsterY(map: number, region: number, x: number, y: number): number {
   const g = loadPex(map, region);
   if (!g) return y;
@@ -103,7 +103,7 @@ export function snapMonsterY(map: number, region: number, x: number, y: number):
 }
 
 /**
- * York/thpspx Map.UpdatePosition — step `dest` px on X, fix Y via pexels, flip on edge/wall.
+ * Map.UpdatePosition — step `dest` px on X, fix Y via pexels, flip on edge/wall.
  * Mutates pos; returns new facing side (-1|1).
  */
 export function updateMonsterPosition(

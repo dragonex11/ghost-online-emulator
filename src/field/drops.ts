@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { rates } from "../config.js";
 import { query } from "../db.js";
+import { SELECT_MONSTER_DROPS } from "../db/queries/index.js";
 
 export type DropRule = {
   monsterId: number;
@@ -31,7 +32,7 @@ export async function loadDropRules(): Promise<void> {
   rules = [];
   try {
     const rows = await query<RowDataPacket[]>(
-      "SELECT monster_id, kind, item_id, min_qty, max_qty, chance_bps, min_lv, max_lv FROM monster_drops",
+      SELECT_MONSTER_DROPS,
     );
     for (const r of rows) {
       const kind = String(r.kind);

@@ -1,6 +1,6 @@
 # Ghost Online Private Server
 
-Ghost Online emulator built on Classic Ghost Online (Malaysian version). This is an experimental project for educational purposes — use at your own risk.
+Ghost Online emulator for the Malaysian client. This is an experimental project for educational purposes — use at your own risk.
 
 ![In-game screenshot](docs/ingame-screenshot.png)
 

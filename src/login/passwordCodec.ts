@@ -1,5 +1,5 @@
 /**
- * Ghost Online client password wire codec (en-client / Game4).
+ * Ghost Online client password wire codec (Ghost Online client).
  *
  * Client packs the password into 4-byte LE chunks, adds a per-login key
  * (u16 in 1000..9999, also embedded in the login packet), bit-permutes,

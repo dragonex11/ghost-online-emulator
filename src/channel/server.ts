@@ -4,57 +4,31 @@ import { config } from "../config.js";
 import { query, execute, withConnection } from "../db.js";
 import { peelGame, opcodeOf, readCString, writeCString, writeHeader, logPkt, bufToHex } from "../net/packet.js";
 import { decodePassword, encodePassword } from "../login/passwordCodec.js";
+import { parseInetCredentials } from "../net/inetAuth.js";
+import { PACKET_MAGIC } from "../protocol/magic.js";
+import { CREATE_CHAR_MULTI_STATEMENT, DELETE_CHARACTERS_BY_ID, DELETE_EQUIP_BY_CHARID, DELETE_OTHER_BY_CHARID, DELETE_SKILLS_BY_CHARID, DELETE_SPEND_BY_CHARID, SELECT_CHARACTERS_BY_NAME, SELECT_CHARACTERS_BY_NAME_AND_USERID, SELECT_CHARACTERS_BY_USERID, SELECT_CHARACTERS_BY_USERID_2, selectEquipByCharIdsIn, SELECT_USERS_BY_USERNAME } from "../db/queries/index.js";
 
-/** Game4 = 0x0105 (4 char slots / 368B); en-client = 0x0037 (2 slots / 192B). */
-const DEFAULT_MAGIC = 0x0105;
-const EN_CLIENT_MAGIC = 0x0037;
+/** Character select: 2 slots × 88 bytes + 16-byte header = 192. */
+const CHAR_SLOTS = 2;
 
 type Client = {
   sock: net.Socket;
   buf: Buffer;
   accountId: number;
   magic: number;
-  /** Session token from request header +8; en-client echoes [0x824d10]. */
+  /** Session token from request header +8; echoed in replies. */
   unk: number;
 };
 
-/** Match legacy _GETACCOUNTID: C-string at +17 skips leading "INET ", then
- *  StringSplit 1-based [2]=username [4]=password → 0-based [1] and [3].
- *  Full string from +12 is "INET 1000 ADMIN 0 admin ..." (C# uses [2]/[4] on that).
- *  en-client sends encoded password; key is the numeric field after INET.
- */
-function parseCredentials(pkt: Buffer): { username: string; password: string; key: number | null; raw: string } {
-  const rawFrom12 = readCString(pkt, 12, 240);
-  const raw = readCString(pkt, 17, 240); // legacy offset
-
-  // Prefer full "+12" form: INET <key> <user> <flag> <pass> ...
-  const full = rawFrom12.split(" ");
-  if (full[0] === "INET" && full.length > 4) {
-    const key = /^\d+$/.test(full[1] ?? "") ? Number(full[1]) : null;
-    return { username: full[2] ?? "", password: full[4] ?? "", key, raw: rawFrom12 };
-  }
-
-  // legacy +17 form: <key> <user> <flag> <pass> ...
-  const parts = raw.split(" ");
-  if (parts.length > 3) {
-    const key = /^\d+$/.test(parts[0] ?? "") ? Number(parts[0]) : null;
-    return { username: parts[1] ?? "", password: parts[3] ?? "", key, raw };
-  }
-
-  const tok = raw.split(/\s+/).filter(Boolean);
-  if (tok.length >= 4 && /^\d+$/.test(tok[0]!)) {
-    return { username: tok[1] ?? "", password: tok[3] ?? "", key: Number(tok[0]), raw };
-  }
-  if (tok.length >= 2) {
-    return { username: tok[0] ?? "", password: tok[1] ?? "", key: null, raw };
-  }
-  return { username: "", password: "", key: null, raw };
+/** Match legacy _GETACCOUNTID — see parseInetCredentials. */
+function parseCredentials(pkt: Buffer) {
+  return parseInetCredentials(pkt);
 }
 
 async function getAccountId(pkt: Buffer): Promise<number> {
   const { username, password, key } = parseCredentials(pkt);
   if (!username) return 0;
-  const rows = await query<RowDataPacket[]>("SELECT password, accountid FROM users WHERE username = ?", [username]);
+  const rows = await query<RowDataPacket[]>(SELECT_USERS_BY_USERNAME, [username]);
   if (!rows.length) {
     console.log("[channel] auth fail: unknown user");
     return 0;
@@ -80,7 +54,7 @@ async function getEquippedBatch(charIds: number[]): Promise<Map<number, Record<n
   if (!charIds.length) return out;
   const ph = charIds.map(() => "?").join(",");
   const rows = await query<RowDataPacket[]>(
-    `SELECT charid, type, pos2 FROM equip WHERE pos1 = 0 AND charid IN (${ph})`,
+    selectEquipByCharIdsIn(ph),
     charIds,
   );
   for (const r of rows) {
@@ -92,13 +66,12 @@ async function getEquippedBatch(charIds: number[]): Promise<Map<number, Record<n
   return out;
 }
 
-async function charStatus(accountId: number, magic = DEFAULT_MAGIC, unk = 0): Promise<Buffer> {
+async function charStatus(accountId: number, magic = PACKET_MAGIC, unk = 0): Promise<Buffer> {
   const chars = await query<RowDataPacket[]>(
-    "SELECT ID, name, sex, level, job, job2, job3 FROM characters WHERE userid = ? ORDER BY ID",
+    SELECT_CHARACTERS_BY_USERID,
     [accountId],
   );
-  // Game4/legacy: 4×88 + 16 = 368. en-client: 2×88 + 16 = 192 (0xC0).
-  const slots = magic === EN_CLIENT_MAGIC ? 2 : 4;
+  const slots = CHAR_SLOTS;
   const total = 16 + slots * 88;
   const buf = Buffer.alloc(total, 0);
   writeHeader(buf, 0x0009, total, magic, unk);
@@ -112,7 +85,7 @@ async function charStatus(accountId: number, magic = DEFAULT_MAGIC, unk = 0): Pr
     const c = chars[i]!;
     const base = 16 + i * 88;
     writeCString(buf, base, String(c.name ?? ""), 40);
-    // sex@+40, level@+41, job@+42 relative to slot base (same in both clients)
+    // sex@+40, level@+41, job@+42 relative to slot base
     buf.writeUInt8(Number(c.sex ?? 0), base + 40);
     buf.writeUInt8(Number(c.level ?? 1), base + 41);
     buf.writeUInt8(Number(c.job ?? 0), base + 42);
@@ -135,7 +108,7 @@ async function charStatus(accountId: number, magic = DEFAULT_MAGIC, unk = 0): Pr
       buf.writeUInt8(0xff, base + 43); // no bubble + basic class names
       buf.writeUInt8(0xff, base + 44);
     }
-    // Game4 faction aura (ec1); en-client CHARSTATUS does not read +45 today.
+    // Faction aura flag (ec1); CHARSTATUS may not read +45 on all builds.
     buf.writeUInt8(hasFaction ? 1 : 0, base + 45);
 
     const eq = equips.get(Number(c.ID)) ?? {};
@@ -154,7 +127,7 @@ async function charStatus(accountId: number, magic = DEFAULT_MAGIC, unk = 0): Pr
 
 async function checkName(pkt: Buffer): Promise<boolean> {
   const name = readCString(pkt, 12, 20);
-  const rows = await query<RowDataPacket[]>("SELECT ID FROM characters WHERE name = ?", [name]);
+  const rows = await query<RowDataPacket[]>(SELECT_CHARACTERS_BY_NAME, [name]);
   return rows.length === 0;
 }
 
@@ -171,11 +144,7 @@ async function createChar(accountId: number, pkt: Buffer): Promise<number> {
   // Two remote DB round-trips total (was ~18): meta SELECT, then multi-statement inserts.
   const numChars = await withConnection(async (conn) => {
     const [metaRows] = await conn.query<RowDataPacket[]>(
-      `SELECT
-         (SELECT COUNT(*) FROM characters WHERE name = ?) AS name_taken,
-         (SELECT COALESCE(MAX(ID),0) FROM characters) AS max_id,
-         (SELECT COALESCE(MAX(equipid),0) FROM equip) AS max_eid,
-         (SELECT COUNT(*) FROM characters WHERE userid = ?) AS char_count`,
+      SELECT_CHARACTERS_BY_NAME_AND_USERID,
       [name, accountId],
     );
     const meta = metaRows[0]!;
@@ -186,11 +155,7 @@ async function createChar(accountId: number, pkt: Buffer): Promise<number> {
     const prevCount = Number(meta.char_count);
 
     await conn.query(
-      `INSERT INTO characters (ID, name, userid, sex) VALUES (?,?,?,?);
-       INSERT INTO equip (equipid, type, charid, pos1, pos2) VALUES
-         (?,?,?,0,0),(?,?,?,0,1),(?,?,?,0,5),(?,?,?,0,7),(?,?,?,0,8);
-       INSERT INTO skills (charid, skillid, points) VALUES
-         (?,?,1),(?,?,1),(?,?,1),(?,?,1)`,
+      CREATE_CHAR_MULTI_STATEMENT,
       [
         charId, name, accountId, sex,
         eid0 + 1, weapon, charId,
@@ -210,18 +175,18 @@ async function createChar(accountId: number, pkt: Buffer): Promise<number> {
 
 async function deleteChar(accountId: number, pkt: Buffer): Promise<number> {
   const slot = pkt.readUInt8(12) & 0x0f;
-  const chars = await query<RowDataPacket[]>("SELECT ID FROM characters WHERE userid = ? ORDER BY ID", [accountId]);
+  const chars = await query<RowDataPacket[]>(SELECT_CHARACTERS_BY_USERID_2, [accountId]);
   if (slot >= chars.length) return 0;
   const charId = Number(chars[slot]!.ID);
-  await execute("DELETE FROM characters WHERE ID = ?", [charId]);
-  await execute("DELETE FROM equip WHERE charid = ?", [charId]);
-  await execute("DELETE FROM other WHERE charid = ?", [charId]);
-  await execute("DELETE FROM spend WHERE charid = ?", [charId]);
-  await execute("DELETE FROM skills WHERE charid = ?", [charId]);
+  await execute(DELETE_CHARACTERS_BY_ID, [charId]);
+  await execute(DELETE_EQUIP_BY_CHARID, [charId]);
+  await execute(DELETE_OTHER_BY_CHARID, [charId]);
+  await execute(DELETE_SPEND_BY_CHARID, [charId]);
+  await execute(DELETE_SKILLS_BY_CHARID, [charId]);
   return Math.max(0, chars.length - 1);
 }
 
-function createAck(numChars: number, magic = DEFAULT_MAGIC, unk = 0): Buffer {
+function createAck(numChars: number, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
   writeHeader(b, 0x000b, 16, magic, unk);
   b.writeUInt8(1, 12);
@@ -229,14 +194,14 @@ function createAck(numChars: number, magic = DEFAULT_MAGIC, unk = 0): Buffer {
   return b;
 }
 
-function deleteAck(numChars: number, magic = DEFAULT_MAGIC, unk = 0): Buffer {
+function deleteAck(numChars: number, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
   writeHeader(b, 0x000f, 16, magic, unk);
   b.writeUInt32LE(numChars, 12);
   return b;
 }
 
-function nameAck(ok: boolean, magic = DEFAULT_MAGIC, unk = 0): Buffer {
+function nameAck(ok: boolean, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
   writeHeader(b, 0x000d, 16, magic, unk);
   b.writeUInt32LE(ok ? 1 : 0, 12);
@@ -244,7 +209,7 @@ function nameAck(ok: boolean, magic = DEFAULT_MAGIC, unk = 0): Buffer {
 }
 
 async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
-  client.magic = pkt.readUInt16LE(0) || DEFAULT_MAGIC;
+  client.magic = pkt.readUInt16LE(0) || PACKET_MAGIC;
   client.unk = pkt.readUInt32LE(8);
   const op = opcodeOf(pkt);
   console.log(
@@ -253,7 +218,7 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
   logPkt("IN", `channel op=${op.toString(16)}`, pkt);
 
   if (op === 0x0008) {
-    // Future: age-verified channels reject via GAME_ACK status 0x1C (en-client ready; server-only).
+    // Future: age-verified channels reject via GAME_ACK status 0x1C.
     // PVP / Guild War (ch 10) are field/channel rules, not SERVERLIST flags — see login/server.ts.
     const aid = await getAccountId(pkt);
     client.accountId = aid;
@@ -292,7 +257,7 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
 
 export function startChannelServer(): net.Server {
   const server = net.createServer((sock) => {
-    const client: Client = { sock, buf: Buffer.alloc(0), accountId: 0, magic: DEFAULT_MAGIC, unk: 0 };
+    const client: Client = { sock, buf: Buffer.alloc(0), accountId: 0, magic: PACKET_MAGIC, unk: 0 };
     console.log("[channel] connect from", sock.remoteAddress, sock.remotePort);
 
     sock.on("data", async (chunk) => {

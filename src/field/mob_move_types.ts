@@ -1,5 +1,5 @@
-/** York MobFactory.MoveType — 0=plant, 1=walk, 3=fly (client-driven). */
-export const YORK_MOVE_TYPE: Record<number, number> = {
+/** Mob MoveType — 0=plant, 1=walk, 3=fly (client-driven). */
+export const MOB_MOVE_TYPE: Record<number, number> = {
   1000101: 1,
   1000201: 1,
   1000301: 1,
@@ -68,6 +68,6 @@ export const YORK_MOVE_TYPE: Record<number, number> = {
   1010002: 1,
 };
 
-export function yorkMoveType(template: number): number {
-  return YORK_MOVE_TYPE[template] ?? 1;
+export function mobMoveType(template: number): number {
+  return MOB_MOVE_TYPE[template] ?? 1;
 }

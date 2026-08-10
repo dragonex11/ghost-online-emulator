@@ -1,5 +1,5 @@
-/** York MobFactory.AttackType — 0 = no counter-attack anim, else attack style id. */
-const TABLE: Record<number, number> = {
+/** Mob AttackType — 0 = no counter-attack anim, else attack style id. */
+const MOB_ATTACK_TYPE: Record<number, number> = {
   1000101: 0,
   1000201: 0,
   1000301: 0,
@@ -68,6 +68,6 @@ const TABLE: Record<number, number> = {
   1010002: 0,
 };
 
-export function yorkAttackType(template: number): number {
-  return TABLE[template] ?? 1;
+export function mobAttackType(template: number): number {
+  return MOB_ATTACK_TYPE[template] ?? 1;
 }

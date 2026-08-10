@@ -1,5 +1,5 @@
 /**
- * Cash spend boxes / event buffs (en-client item.itm):
+ * Cash spend boxes / event buffs (client item.itm):
  *   8890044 Gift Box — mystery reward
  *   8890101 Old Treasure Box — mystery reward
  *   8890050 Christmas sock — mystery reward

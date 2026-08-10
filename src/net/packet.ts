@@ -1,4 +1,6 @@
 import { config } from "../config.js";
+import { PACKET_MAGIC } from "../protocol/magic.js";
+import { OP_FIELD_COMPRESSED } from "../protocol/opcodes.js";
 
 export function hexToBuf(hex: string): Buffer {
   const clean = hex.replace(/^0x/i, "").replace(/\s+/g, "");
@@ -50,11 +52,9 @@ export function peelAA55(buf: Buffer): { frames: Buffer[]; rest: Buffer } {
 
 /**
  * Game framing: magic u16 | opcode u16 | totalLen u16 | crc u16 | unk u32 | body
- * - Game4 / TW: magic = 0x0105 (bytes 05 01), crc = opcode + totalLen + magic
- * - en-client:  magic = 0x0037 (bytes 37 00), same crc formula
- * Outbound replies keep Game4 magic; clients validate CRC from the packet's own magic.
+ * CRC = opcode + totalLen + magic (all u16, truncated).
  */
-export function writeHeader(buf: Buffer, opcode: number, totalLen: number, magic = 0x0105, unk = 0): void {
+export function writeHeader(buf: Buffer, opcode: number, totalLen: number, magic = PACKET_MAGIC, unk = 0): void {
   buf.writeUInt16LE(magic & 0xffff, 0);
   buf.writeUInt16LE(opcode & 0xffff, 2);
   buf.writeUInt16LE(totalLen & 0xffff, 4);
@@ -71,8 +71,8 @@ export function makePacket(opcode: number, bodyLen: number, fill?: (buf: Buffer)
 }
 
 /**
- * legacy SPLITDATA parity: frame by totalLen at +4; do not require 05 01 magic.
- * en-client field compression uses opcode 0x81 where length = body size after the
+ * Frame by totalLen at +4.
+ * Field compression uses opcode 0x81 where length = body size after the
  * 12-byte header (total wire size = 12 + length).
  */
 export function peelGame(buf: Buffer): { frames: Buffer[]; rest: Buffer } {
@@ -81,7 +81,7 @@ export function peelGame(buf: Buffer): { frames: Buffer[]; rest: Buffer } {
   while (off + 12 <= buf.length) {
     const opcode = buf.readUInt16LE(off + 2);
     const lenField = buf.readUInt16LE(off + 4);
-    const total = opcode === 0x81 ? 12 + lenField : lenField;
+    const total = opcode === OP_FIELD_COMPRESSED ? 12 + lenField : lenField;
     if (total < 12 || total > 0x8000 || lenField > 0x8000) {
       off++;
       continue;

@@ -4,6 +4,7 @@ import { rates } from "../config.js";
 import { writeHeader } from "../net/packet.js";
 import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
 import { ensureBeginnerSkills, buildSkillAll } from "./skills.js";
+import { DELETE_QUESTS_BY_CHARID_AND_QUESTID, INSERT_QUESTS, INSERT_SKILLS, SELECT_CHARACTERS_BY_ID_2, SELECT_EQUIP_BY_CHARID_AND_TYPE, SELECT_QUESTS_BY_CHARID, SELECT_QUESTS_BY_CHARID_AND_QUESTID, SELECT_QUESTS_BY_CHARID_AND_STATE, selectRowDynamicTableCol, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_10, UPDATE_CHARACTERS_BY_ID_11, UPDATE_CHARACTERS_BY_ID_12, UPDATE_CHARACTERS_BY_ID_13, UPDATE_QUESTS_BY_CHARID_AND_QUESTID, UPDATE_QUESTS_BY_CHARID_AND_QUESTID_2, UPDATE_QUESTS_BY_ID, UPDATE_QUESTS_BY_ID_2 } from "../db/queries/index.js";
 
 /** remote DB: quests(charid, questid, state, progress). Packets match legacy legacy quests. */
 
@@ -91,7 +92,7 @@ function supported(qid: number): boolean {
 
 export async function buildQuestAll(cid: number): Promise<Buffer> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT questid AS questId, state AS questState, progress AS completeMonster FROM quests WHERE charid=? ORDER BY state, id",
+    SELECT_QUESTS_BY_CHARID,
     [cid],
   );
   const b = Buffer.alloc(1252, 0);
@@ -130,7 +131,7 @@ function questUpdate(complete: number, questId: number, stateA: number, stateB: 
 
 async function getRow(cid: number, qid: number): Promise<RowDataPacket | null> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT id, questid AS questId, state AS questState, progress AS completeMonster FROM quests WHERE charid=? AND questid=? LIMIT 1",
+    SELECT_QUESTS_BY_CHARID_AND_QUESTID,
     [cid, qid],
   );
   return rows[0] ?? null;
@@ -146,7 +147,7 @@ async function removeItemById(cid: number, itemId: number, qty: number): Promise
   for (const t of bags) {
     if (left <= 0) break;
     const rows = await query<RowDataPacket[]>(
-      `SELECT pos2, amount FROM ${t.table} WHERE charid=? AND ${t.col}=? AND amount>0 ORDER BY pos2`,
+      selectRowDynamicTableCol(t.table, t.col),
       [cid, itemId],
     );
     for (const r of rows) {
@@ -160,7 +161,7 @@ async function removeItemById(cid: number, itemId: number, qty: number): Promise
   // Equip (bags 0–2): one row per piece — legacy parity
   if (left > 0) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT pos1, pos2 FROM equip WHERE charid=? AND type=? ORDER BY pos1, pos2 LIMIT ?",
+      SELECT_EQUIP_BY_CHARID_AND_TYPE,
       [cid, itemId, left],
     );
     const refreshed = new Set<number>();
@@ -178,20 +179,20 @@ async function removeItemById(cid: number, itemId: number, qty: number): Promise
 }
 
 async function grantSkill(cid: number, skillId: number): Promise<void> {
-  const rows = await query<RowDataPacket[]>("SELECT id FROM skills WHERE charid=? AND skillid=?", [cid, skillId]);
-  if (!rows.length) await execute("INSERT INTO skills (charid, skillid, points) VALUES (?,?,1)", [cid, skillId]);
+  const rows = await query<RowDataPacket[]>(SELECT_SKILLS_BY_CHARID_AND_SKILLID, [cid, skillId]);
+  if (!rows.length) await execute(INSERT_SKILLS, [cid, skillId]);
 }
 
 async function addMoney(cid: number, amount: number): Promise<void> {
-  await execute("UPDATE characters SET money=money+? WHERE ID=?", [amount, cid]);
+  await execute(UPDATE_CHARACTERS_BY_ID_10, [amount, cid]);
 }
 
 async function addFame(cid: number, amount: number): Promise<void> {
-  await execute("UPDATE characters SET honor=honor+? WHERE ID=?", [amount, cid]);
+  await execute(UPDATE_CHARACTERS_BY_ID_11, [amount, cid]);
 }
 
 async function addExp(cid: number, amount: number): Promise<void> {
-  const rows = await query<RowDataPacket[]>("SELECT exp, mexp, level, st_point, sk_point FROM characters WHERE ID=?", [cid]);
+  const rows = await query<RowDataPacket[]>(SELECT_CHARACTERS_BY_ID_2, [cid]);
   if (!rows.length) return;
   let exp = Number(rows[0]!.exp ?? 0) + amount;
   let mexp = Number(rows[0]!.mexp ?? 30);
@@ -205,13 +206,13 @@ async function addExp(cid: number, amount: number): Promise<void> {
     sk += 1;
     mexp = Math.floor(mexp * rates.questExpRate) + rates.questExpFlat;
   }
-  await execute("UPDATE characters SET exp=?, mexp=?, level=?, st_point=?, sk_point=? WHERE ID=?", [
+  await execute(UPDATE_CHARACTERS_BY_ID_12, [
     exp, mexp, level, st, sk, cid,
   ]);
 }
 
 async function jobChange(cid: number, job: number): Promise<Buffer[]> {
-  await execute("UPDATE characters SET str=3,dex=3,vit=3,intel=3,st_point=40,job=? WHERE ID=?", [job, cid]);
+  await execute(UPDATE_CHARACTERS_BY_ID_13, [job, cid]);
   // Original: job change does not unlock skills — those come from job-master quests (22–51).
   await ensureBeginnerSkills(cid);
   return [await buildSkillAll(cid)];
@@ -272,9 +273,9 @@ export async function acceptQuest(cid: number, level: number, questId: number): 
   if (existing) {
     const st = Number(existing.questState);
     if (st === 0x31 || st === 0x32) return [await buildQuestAll(cid)];
-    await execute("UPDATE quests SET state=49, progress=0 WHERE id=?", [existing.id]);
+    await execute(UPDATE_QUESTS_BY_ID, [existing.id]);
   } else {
-    await execute("INSERT INTO quests (charid, questid, state, progress) VALUES (?,?,49,0)", [cid, questId]);
+    await execute(INSERT_QUESTS, [cid, questId]);
   }
   const out: Buffer[] = [];
   const acceptItem = ACCEPT_ITEMS[questId];
@@ -287,7 +288,7 @@ export async function acceptQuest(cid: number, level: number, questId: number): 
 }
 
 export async function giveUpQuest(cid: number, questId: number): Promise<Buffer[]> {
-  await execute("DELETE FROM quests WHERE charid=? AND questid=?", [cid, questId]);
+  await execute(DELETE_QUESTS_BY_CHARID_AND_QUESTID, [cid, questId]);
   return [await buildQuestAll(cid)];
 }
 
@@ -298,7 +299,7 @@ export async function completeQuest(cid: number, questId: number): Promise<Quest
   if (!row || Number(row.questState) !== 0x31) {
     return { packets: [await buildQuestAll(cid)], refreshChar: false };
   }
-  await execute("UPDATE quests SET state=50 WHERE charid=? AND questid=?", [cid, questId]);
+  await execute(UPDATE_QUESTS_BY_CHARID_AND_QUESTID, [cid, questId]);
   const rewardPkts = await applyRewards(cid, questId);
   return {
     packets: [...rewardPkts, await buildQuestAll(cid), questUpdate(Number(row.completeMonster), questId, 1, 0)],
@@ -308,7 +309,7 @@ export async function completeQuest(cid: number, questId: number): Promise<Quest
 
 export async function onMonsterKill(cid: number, template: number): Promise<Buffer[]> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT id, questid AS questId, progress AS completeMonster, state AS questState FROM quests WHERE charid=? AND state=49",
+    SELECT_QUESTS_BY_CHARID_AND_STATE,
     [cid],
   );
   const out: Buffer[] = [];
@@ -320,7 +321,7 @@ export async function onMonsterKill(cid: number, template: number): Promise<Buff
     if (done >= def.count) continue;
     done += 1;
     // Keep state=49 (0x31) until turn-in — legacy parity
-    await execute("UPDATE quests SET progress=? WHERE id=?", [done, r.id]);
+    await execute(UPDATE_QUESTS_BY_ID_2, [done, r.id]);
     out.push(questUpdate(done, qid, 1, 0));
   }
   return out;
@@ -344,7 +345,7 @@ export async function handleQuestPacket(
   if (opcode === 0x007d) {
     const questId = pkt.length >= 18 ? pkt.readUInt16LE(16) : qid;
     const stage = pkt.length >= 20 ? pkt.readUInt16LE(18) : 0;
-    await execute("UPDATE quests SET progress=? WHERE charid=? AND questid=? AND state=49", [stage, cid, questId]);
+    await execute(UPDATE_QUESTS_BY_CHARID_AND_QUESTID_2, [stage, cid, questId]);
     const row = await getRow(cid, questId);
     if (!row) return { packets: [], refreshChar: false };
     return { packets: [questUpdate(Number(row.completeMonster), questId, 1, stage & 0xff)], refreshChar: false };

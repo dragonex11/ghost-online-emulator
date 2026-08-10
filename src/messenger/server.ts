@@ -4,70 +4,61 @@ import net from "node:net";
 import type { RowDataPacket } from "mysql2";
 import { peelGame, writeHeader, writeCString, readCString } from "../net/packet.js";
 import { query, execute } from "../db.js";
+import { PACKET_MAGIC } from "../protocol/magic.js";
+import {
+  DELETE_LETTERS_BY_ID_AND_TO_CHARID,
+  DELETE_LETTERS_BY_TO_CHARID,
+  DELETE_LETTERS_BY_TO_CHARID_2,
+  INSERT_FRIENDS,
+  INSERT_LETTERS,
+  SELECT_CHARACTERS_BY_ID_4,
+  SELECT_CHARACTERS_BY_NAME_3,
+  SELECT_FRIENDS_BY_CHARID,
+  SELECT_FRIENDS_BY_CHARID_2,
+  SELECT_FRIENDS_BY_CHARID_AND_FRIENDID,
+  SELECT_LETTERS_BY_TO_CHARID,
+  SELECT_LETTERS_BY_TO_CHARID_2,
+  SELECT_LETTERS_BY_TO_CHARID_3,
+  UPDATE_LETTERS_BY_ID_AND_TO_CHARID,
+} from "../db/queries/index.js";
+import {
+  OP_READY,
+  OP_GAMELOG,
+  OP_FRIEND_LIST_REQ,
+  OP_LETTER_LIST_REQ,
+  OP_LETTER_LIST,
+  OP_LETTER_SEND,
+  OP_LETTER_RECV,
+  OP_LETTER_DEL,
+  OP_LETTER_DEL_ALL,
+  OP_LETTER_READ,
+  OP_FRIEND_LIST,
+  OP_FRIEND_REFRESH,
+  OP_FRIEND_ADD,
+  OP_FRIEND_REPLY,
+  OP_FRIEND_ADD_ACK,
+  OP_FRIEND_ONLINE,
+  OP_KEEPALIVE,
+  SLOT_SIZE,
+  MAX_FRIENDS,
+  NAME_LEN,
+  FRIEND_LIST_TOTAL,
+  LETTER_SLOT_SIZE,
+  MAX_LETTERS,
+  LETTER_BODY_LEN,
+  LETTER_LIST_TOTAL,
+  RESULT_OK,
+  RESULT_FAIL,
+  RESULT_FULL,
+} from "./opcodes.js";
+
+
 
 /**
- * Messenger — EN client dials 127.0.0.1:17201.
+ * Messenger server (default 127.0.0.1:17201).
  *
- * EN wire: magic 0x0037 | op | totalLen | crc | unk | body
- *
- * C2S:
- *   0x0C FriendListReq — login; charId @+12
- *   0x40 LetterListReq — Message Management (dialog 0x36c7)
- *   0x42 LetterSend — deliver; flag@+12, toName@+13 (20), body@+0x21 (512)
- *   0x45 LetterDel — slot index @+12
- *   0x46 LetterDelAll
- *   0x47 LetterRead — slot index @+12
- *   0x48 FriendListRefresh — F / Interact friend tab (dialog 0x3718)
- *   0x4A FriendAddReq — target name @+12
- *   0x4B FriendInviteReply — name @+12, flag @+0x20 (0=accept, -1=reject)
- *   0x5A keepalive
- *
- * S2C:
- *   0x0B GameLog, 0x09 Ready
- *   0x41 LetterList — 30 × 0x21a slots (total 0x3F18); dialog 0x36c7
- *   0x43 LetterRecv — fromName[20]; "You have a message from %s"
- *   0x49 FriendList — dialog 0x3718; 30 × 0x20 name-first slots (total 0x3CC)
- *   0x4A invite notify ("%s has sent a friend invitation")
- *   0x4C result (0=added, 1=fail)
- *   0x4F online notify
- *
- * Note: S2C 0x39 updates dialog 0x3715 (class columns) — NOT the F friends UI.
+ * Wire: magic PACKET_MAGIC | op | totalLen | crc | unk | body
  */
-
-const EN_MAGIC = 0x0037;
-const OP_READY = 0x0009;
-const OP_GAMELOG = 0x000b;
-const OP_FRIEND_LIST_REQ = 0x000c;
-const OP_LETTER_LIST_REQ = 0x0040;
-const OP_LETTER_LIST = 0x0041;
-const OP_LETTER_SEND = 0x0042;
-const OP_LETTER_RECV = 0x0043;
-const OP_LETTER_DEL = 0x0045;
-const OP_LETTER_DEL_ALL = 0x0046;
-const OP_LETTER_READ = 0x0047;
-const OP_FRIEND_LIST = 0x0049;
-const OP_FRIEND_REFRESH = 0x0048;
-const OP_FRIEND_ADD = 0x004a;
-const OP_FRIEND_REPLY = 0x004b;
-const OP_FRIEND_ADD_ACK = 0x004c;
-const OP_FRIEND_ONLINE = 0x004f;
-const OP_KEEPALIVE = 0x005a;
-
-/** EN F-list (0x3718): 30 slots × 0x20; empty template @ 0x66e0a0. */
-const SLOT_SIZE = 0x20;
-const MAX_FRIENDS = 30;
-const NAME_LEN = 20;
-const FRIEND_LIST_TOTAL = 0x3cc; // 12 + 30*0x20
-
-/** Letter list (0x36c7): 30 slots × 0x21a; empty template @ 0x66dfe0. */
-const LETTER_SLOT_SIZE = 0x21a;
-const MAX_LETTERS = 30;
-const LETTER_BODY_LEN = 512;
-const LETTER_LIST_TOTAL = 0x3f18; // 12 + 30*0x21a
-
-const RESULT_OK = 0;
-const RESULT_FAIL = 1;
-const RESULT_FULL = 2;
 
 const logPath = path.resolve(process.cwd(), "logs", "messenger.log");
 
@@ -118,7 +109,7 @@ function mlog(line: string): void {
 function makePkt(opcode: number, bodyLen: number, unk: number, fill?: (b: Buffer) => void): Buffer {
   const total = 12 + bodyLen;
   const buf = Buffer.alloc(total, 0);
-  writeHeader(buf, opcode, total, EN_MAGIC, unk);
+  writeHeader(buf, opcode, total, PACKET_MAGIC, unk);
   if (fill) fill(buf);
   return buf;
 }
@@ -252,7 +243,7 @@ function unregisterSession(s: MsgSession): void {
 
 async function loadChar(charId: number): Promise<{ name: string; level: number }> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT name, level FROM characters WHERE ID = ? LIMIT 1",
+    SELECT_CHARACTERS_BY_ID_4,
     [charId],
   );
   return {
@@ -263,7 +254,7 @@ async function loadChar(charId: number): Promise<{ name: string; level: number }
 
 async function findCharByName(name: string): Promise<{ id: number; name: string; level: number } | null> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT ID, name, level FROM characters WHERE name = ? LIMIT 1",
+    SELECT_CHARACTERS_BY_NAME_3,
     [name],
   );
   if (!rows[0]) return null;
@@ -276,12 +267,7 @@ async function findCharByName(name: string): Promise<{ id: number; name: string;
 
 async function listFriends(charId: number): Promise<FriendRow[]> {
   const rows = await query<RowDataPacket[]>(
-    `SELECT c.ID AS id, c.name AS name, c.level AS level
-     FROM friends f
-     JOIN characters c ON c.ID = f.friendid
-     WHERE f.charid = ?
-     ORDER BY c.name
-     LIMIT ?`,
+    SELECT_FRIENDS_BY_CHARID,
     [charId, MAX_FRIENDS],
   );
   return rows.map((r) => {
@@ -300,19 +286,19 @@ async function listFriends(charId: number): Promise<FriendRow[]> {
 
 async function areFriends(a: number, b: number): Promise<boolean> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT 1 AS ok FROM friends WHERE charid = ? AND friendid = ? LIMIT 1",
+    SELECT_FRIENDS_BY_CHARID_AND_FRIENDID,
     [a, b],
   );
   return rows.length > 0;
 }
 
 async function addFriendship(a: number, b: number): Promise<void> {
-  await execute("INSERT IGNORE INTO friends (charid, friendid) VALUES (?, ?), (?, ?)", [a, b, b, a]);
+  await execute(INSERT_FRIENDS, [a, b, b, a]);
 }
 
 async function friendCount(charId: number): Promise<number> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT COUNT(*) AS n FROM friends WHERE charid = ?",
+    SELECT_FRIENDS_BY_CHARID_2,
     [charId],
   );
   return Number(rows[0]?.n ?? 0);
@@ -320,11 +306,7 @@ async function friendCount(charId: number): Promise<number> {
 
 async function listLetters(charId: number): Promise<LetterRow[]> {
   const rows = await query<RowDataPacket[]>(
-    `SELECT id, from_name, body, sent_at, unread
-     FROM letters
-     WHERE to_charid = ?
-     ORDER BY id DESC
-     LIMIT ?`,
+    SELECT_LETTERS_BY_TO_CHARID,
     [charId, MAX_LETTERS],
   );
   return rows.map((r) => ({
@@ -338,7 +320,7 @@ async function listLetters(charId: number): Promise<LetterRow[]> {
 
 async function letterCount(charId: number): Promise<number> {
   const rows = await query<RowDataPacket[]>(
-    "SELECT COUNT(*) AS n FROM letters WHERE to_charid = ?",
+    SELECT_LETTERS_BY_TO_CHARID_2,
     [charId],
   );
   return Number(rows[0]?.n ?? 0);
@@ -358,10 +340,7 @@ async function pushLetterList(s: MsgSession): Promise<void> {
 async function notifyUnreadOnLogin(s: MsgSession): Promise<void> {
   if (s.charId <= 0) return;
   const rows = await query<RowDataPacket[]>(
-    `SELECT from_name FROM letters
-     WHERE to_charid = ? AND unread <> 0
-     ORDER BY id DESC
-     LIMIT 1`,
+    SELECT_LETTERS_BY_TO_CHARID_3,
     [s.charId],
   );
   if (!rows.length) return;
@@ -392,11 +371,11 @@ async function handleLetterSend(s: MsgSession, toName: string, body: string): Pr
 
   // Keep mailbox at 30 — drop oldest when full.
   while ((await letterCount(target.id)) >= MAX_LETTERS) {
-    await execute("DELETE FROM letters WHERE to_charid = ? ORDER BY id ASC LIMIT 1", [target.id]);
+    await execute(DELETE_LETTERS_BY_TO_CHARID, [target.id]);
   }
 
   const text = body.slice(0, LETTER_BODY_LEN);
-  await execute("INSERT INTO letters (to_charid, from_name, body, unread) VALUES (?, ?, ?, 1)", [
+  await execute(INSERT_LETTERS, [
     target.id,
     s.name.slice(0, NAME_LEN),
     text,
@@ -423,14 +402,14 @@ async function handleLetterDel(s: MsgSession, slot: number): Promise<void> {
     await pushLetterList(s);
     return;
   }
-  await execute("DELETE FROM letters WHERE id = ? AND to_charid = ?", [letter.id, s.charId]);
+  await execute(DELETE_LETTERS_BY_ID_AND_TO_CHARID, [letter.id, s.charId]);
   mlog(`  LetterDel slot=${slot} id=${letter.id} char=${s.charId}`);
   await pushLetterList(s);
 }
 
 async function handleLetterDelAll(s: MsgSession): Promise<void> {
   if (!s.charId) return;
-  await execute("DELETE FROM letters WHERE to_charid = ?", [s.charId]);
+  await execute(DELETE_LETTERS_BY_TO_CHARID_2, [s.charId]);
   mlog(`  LetterDelAll char=${s.charId}`);
   await pushLetterList(s);
 }
@@ -444,7 +423,7 @@ async function handleLetterRead(s: MsgSession, slot: number): Promise<void> {
     mlog(`  LetterRead slot=${slot} id=${letter.id} already read char=${s.charId}`);
     return;
   }
-  await execute("UPDATE letters SET unread = 0 WHERE id = ? AND to_charid = ?", [
+  await execute(UPDATE_LETTERS_BY_ID_AND_TO_CHARID, [
     letter.id,
     s.charId,
   ]);
@@ -704,7 +683,7 @@ function attachClient(sock: net.Socket, tag: string): void {
   });
 }
 
-export function startMessengerStub(ports: number | number[] = [17201, 13070]): net.Server[] {
+export function startMessengerServer(ports: number | number[] = [17201, 13070]): net.Server[] {
   const fl = buildFriendList(1, []);
   if (fl.length !== FRIEND_LIST_TOTAL) {
     console.warn(`[messenger] FriendList size ${fl.length} != 0x3cc — check template`);

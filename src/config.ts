@@ -107,9 +107,9 @@ export const config = {
   fieldHost: process.env.FIELD_HOST ?? "127.0.0.1",
   fieldPort: num(process.env.FIELD_PORT, 15023),
   udpPort: num(process.env.UDP_PORT, 13997),
-  /** Primary messenger port (EN client default 17201). */
+  /** Primary messenger port (default 17201). */
   messengerPort: num(process.env.MESSENGER_PORT, 17201),
-  /** Extra messenger port (Game4 classic 13070). */
+  /** Extra messenger port (default 13070). */
   messengerPortAlt: num(process.env.MESSENGER_PORT_ALT, 13070),
   pktLog: process.env.PKT_LOG === "1",
   /** Game data root (drops, prices, cash shop, map_pexels, client assets). */

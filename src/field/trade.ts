@@ -9,6 +9,7 @@ import type { RowDataPacket } from "mysql2";
 import { query, execute } from "../db.js";
 import { writeHeader } from "../net/packet.js";
 import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
+import { SELECT_EQUIP_BY_CHARID_11, SELECT_EQUIP_BY_CHARID_AND_TYPE_2, SELECT_OTHER_BY_CHARID_5, SELECT_SPEND_BY_CHARID_6, UPDATE_EQUIP_BY_CHARID_7 } from "../db/queries/index.js";
 
 export type TradeItem = {
   itemId: number;
@@ -123,7 +124,7 @@ async function loadInvItem(
 ): Promise<{ itemId: number; amount: number; spirit: number; levels: number[]; fusion: number; isCash: number; term: number } | null> {
   if (type < 3) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT type,p_10,p_9,p_8,p_7,p_6,p_5,p_4,p_3,p_2,p_1,soulperc,iscash,timeuse FROM equip WHERE charid=? AND pos1=? AND pos2=? LIMIT 1",
+      SELECT_EQUIP_BY_CHARID_11,
       [charId, type, slot],
     );
     if (!rows.length) return null;
@@ -141,7 +142,7 @@ async function loadInvItem(
   }
   if (type === 3) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT itemid, amount, iscash, timeuse FROM spend WHERE charid=? AND pos1=3 AND pos2=? LIMIT 1",
+      SELECT_SPEND_BY_CHARID_6,
       [charId, slot],
     );
     if (!rows.length) return null;
@@ -158,7 +159,7 @@ async function loadInvItem(
   }
   if (type === 4) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT type, amount, iscash, timeuse FROM other WHERE charid=? AND pos1=4 AND pos2=? LIMIT 1",
+      SELECT_OTHER_BY_CHARID_5,
       [charId, slot],
     );
     if (!rows.length) return null;
@@ -246,13 +247,12 @@ export async function restoreTradeOffer(
     // Best-effort restore of equip forge levels when re-inserted as plain equip
     if ((it.type === 1 || it.type === 2) && it.levels.some((l) => l > 0)) {
       const rows = await query<RowDataPacket[]>(
-        "SELECT pos2 FROM equip WHERE charid=? AND pos1=? AND type=? ORDER BY pos2 DESC LIMIT 1",
+        SELECT_EQUIP_BY_CHARID_AND_TYPE_2,
         [charId, bag > 0 ? bag : it.type, it.itemId],
       );
       if (rows.length) {
         await execute(
-          `UPDATE equip SET p_1=?,p_2=?,p_3=?,p_4=?,p_5=?,p_6=?,p_7=?,p_8=?,p_9=?,p_10=?,soulperc=?
-           WHERE charid=? AND pos1=? AND pos2=?`,
+          UPDATE_EQUIP_BY_CHARID_7,
           [...it.levels, it.spirit, charId, bag > 0 ? bag : it.type, Number(rows[0]!.pos2)],
         );
       }

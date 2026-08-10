@@ -1,0 +1,1 @@
+export const CONNECTION_INFO = `SELECT DATABASE() AS db, VERSION() AS ver`;

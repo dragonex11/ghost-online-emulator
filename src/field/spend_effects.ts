@@ -1,5 +1,5 @@
 /**
- * Spend-bag recover effects (EN item.itm descriptions).
+ * Spend-bag recover effects (client item.itm descriptions).
  * HP = red bar (chp), SP = blue bar stored as mp/cmp on this server.
  */
 

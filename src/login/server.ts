@@ -7,6 +7,7 @@ import { frameAA55, peelAA55, hexToBuf, logPkt, bufToHex } from "../net/packet.j
 import { getOnlineCount } from "../net/online.js";
 import { decodePassword, encodePassword, readPasswordKey } from "./passwordCodec.js";
 import type { RowDataPacket } from "mysql2";
+import { INSERT_USERS, SELECT_USERS, SELECT_USERS_BY_USERNAME_3 } from "../db/queries/index.js";
 
 const VALIDPAS = hexToBuf("AA550500310000E80355AA");
 const INVALIDPAS = hexToBuf("AA550500310D00000055AA");
@@ -27,7 +28,7 @@ function hexLE32(n: number): string {
 }
 
 /**
- * SERVERLIST_ACK (opcode 0x33) — future channel/server feature notes (server-only; en-client already supports):
+ * SERVERLIST_ACK (opcode 0x33) — future channel/server feature notes (server-only; client already supports):
  *
  * Per-entry layout after IP: port u16, unk u16, count u32, maxPlayers u32, b u32 (=12 stock),
  * c u32 (=0 stock), **flag u8**, udpPort u32. Client stores flag at channel-object +0x2C.
@@ -104,7 +105,7 @@ function buildServerList(): Buffer {
 }
 
 function serverListPacket(): Buffer {
-  // Use stock template with online count patched — Game4 expects full multi-channel layout
+  // Use stock template with online count patched — the client expects full multi-channel layout
   try {
     const stockPath = path.join(config.rootDir, "src", "data", "str1_base.hex");
     let hex = fs.readFileSync(stockPath, "utf8").trim();
@@ -154,13 +155,13 @@ async function checkUser(frame: Buffer): Promise<boolean> {
   const key = readPasswordKey(frame, pOff, pLen);
   const plainFromWire = key != null ? decodePassword(wirePass, key) : null;
 
-  const rows = await query<RowDataPacket[]>("SELECT password FROM users WHERE username = ?", [username]);
+  const rows = await query<RowDataPacket[]>(SELECT_USERS_BY_USERNAME_3, [username]);
   if (!rows.length) {
     // Prefer storing decoded plaintext so later logins (new key each time) still work.
     const toStore = plainFromWire ?? wirePass;
-    const maxRows = await query<RowDataPacket[]>("SELECT COALESCE(MAX(accountid),0) AS m FROM users");
+    const maxRows = await query<RowDataPacket[]>(SELECT_USERS);
     const next = Number(maxRows[0]?.m ?? 0) + 1;
-    await execute("INSERT INTO users (accountid, username, password, gm, game_points) VALUES (?,?,?,?,?)", [
+    await execute(INSERT_USERS, [
       next,
       username,
       toStore,
@@ -208,7 +209,7 @@ export function startLoginServer(): net.Server {
             logPkt("OUT", `login#${client.id}`, out);
             if (ok) {
               client.authed = true;
-              // en-client expects a channel list right after auth; don't wait for AA550100.
+              // client expects a channel list right after auth; don't wait for AA550100.
               const list = serverListPacket();
               sock.write(list);
               logPkt("OUT", `login#${client.id} list-after-auth`, list);

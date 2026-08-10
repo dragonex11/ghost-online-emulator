@@ -2,6 +2,7 @@ import { execute, query } from "../db.js";
 import type { RowDataPacket } from "mysql2";
 import { writeHeader, writeCString } from "../net/packet.js";
 import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
+import { SELECT_EQUIP_BY_CHARID_9, SELECT_OTHER_BY_CHARID_4, SELECT_SPEND_BY_CHARID_5 } from "../db/queries/index.js";
 
 type ShopSlot = {
   itemId: number;
@@ -67,8 +68,8 @@ export function buildPShopStartPkt(charId: number, name: string, kind: number): 
   const start = Buffer.alloc(60, 0);
   writeHeader(start, o.start, 60);
   start.writeUInt32LE(charId, 12);
-  // EN client: +16 feeds shop-flag via 0x49eeb0; 0 yields a non-positive flag and
-  // blocks click→0xD3. legacy wrote 0 (TW); EN needs a positive type (≥1).
+  // client: +16 feeds shop-flag via 0x49eeb0; 0 yields a non-positive flag and
+  // blocks click→0xD3. legacy wrote 0 (TW); Client needs a positive type (≥1).
   start.writeUInt32LE(1, 16);
   writeCString(start, 20, name.slice(0, 39), 40);
   return start;
@@ -167,7 +168,7 @@ async function snapshotItem(
 ): Promise<ShopSlot | null> {
   if (srcType < 3) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT type,slot,p_10,p_9,p_8,p_7,p_6,p_5,p_4,p_3,p_2,p_1,soulperc,iscash FROM equip WHERE charid=? AND pos1=? AND pos2=?",
+      SELECT_EQUIP_BY_CHARID_9,
       [charId, srcType, srcSlot],
     );
     if (!rows.length) return null;
@@ -188,7 +189,7 @@ async function snapshotItem(
   }
   if (srcType === 3) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT itemid, amount, iscash FROM spend WHERE charid=? AND pos1=3 AND pos2=?",
+      SELECT_SPEND_BY_CHARID_5,
       [charId, srcSlot],
     );
     if (!rows.length) return null;
@@ -209,7 +210,7 @@ async function snapshotItem(
   }
   if (srcType === 4) {
     const rows = await query<RowDataPacket[]>(
-      "SELECT type, amount, iscash FROM other WHERE charid=? AND pos1=4 AND pos2=?",
+      SELECT_OTHER_BY_CHARID_4,
       [charId, srcSlot],
     );
     if (!rows.length) return null;

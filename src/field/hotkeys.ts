@@ -1,6 +1,7 @@
 import type { RowDataPacket } from "mysql2";
 import { query, execute } from "../db.js";
 import { writeHeader } from "../net/packet.js";
+import { DELETE_SKILL_HOTKEYS_BY_CHARID_AND_KEYNAME, INSERT_SKILL_HOTKEYS, SELECT_SKILL_HOTKEYS_BY_CHARID } from "../db/queries/index.js";
 
 const KEYS = [
   "Z", "X", "C", "V", "B", "N",
@@ -29,7 +30,7 @@ export async function buildQuickSlotAll(charId: number): Promise<Buffer> {
   }
   try {
     const rows = await query<RowDataPacket[]>(
-      "SELECT keyname, skillid, stype, sslot FROM skill_hotkeys WHERE charid=?",
+      SELECT_SKILL_HOTKEYS_BY_CHARID,
       [charId],
     );
     for (const r of rows) {
@@ -56,9 +57,9 @@ export async function saveQuickSlot(charId: number, pkt: Buffer): Promise<void> 
   if ((sid >>> 0) === 0xffffffff) sid = -1;
   const key = quickSlotKeyName(ktype, kslot);
   if (!key) return;
-  await execute("DELETE FROM skill_hotkeys WHERE charid=? AND keyname=?", [charId, key]);
+  await execute(DELETE_SKILL_HOTKEYS_BY_CHARID_AND_KEYNAME, [charId, key]);
   if (!(sid === -1 && stype === -1 && sslot === -1)) {
-    await execute("INSERT INTO skill_hotkeys (charid, keyname, skillid, stype, sslot) VALUES (?,?,?,?,?)", [
+    await execute(INSERT_SKILL_HOTKEYS, [
       charId,
       key,
       sid,

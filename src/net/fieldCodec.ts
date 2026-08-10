@@ -1,5 +1,5 @@
 /**
- * en-client field wire codec (opcode 0x81 frames):
+ * client field wire codec (opcode 0x81 frames):
  *   header(12) | encrypt( compress(packet) || crc32_raw )
  * Outer header: magic=uncompSize, opcode=0x81, length=bodyLen, crc=magic+0x81+bodyLen
  */
@@ -18,7 +18,7 @@ export function fieldChecksum(data: Buffer): number {
   return a >>> 0;
 }
 
-/** Symmetric stream cipher used by en-client 0x68f580 / 0x68f680. */
+/** Symmetric stream cipher used by client 0x68f580 / 0x68f680. */
 export function fieldCrypt(data: Buffer, keys: FieldKeys): Buffer {
   const ks = Buffer.alloc(8);
   ks.writeUInt32LE(keys.key1 >>> 0, 0);
@@ -36,7 +36,7 @@ export function fieldCrypt(data: Buffer, keys: FieldKeys): Buffer {
   return out;
 }
 
-/** LZ decompress (en-client 0x628370). */
+/** LZ decompress (client 0x628370). */
 export function fieldDecompress(src: Buffer, uncompSize: number): Buffer | null {
   const out = Buffer.alloc(uncompSize);
   let si = 0;
@@ -75,7 +75,7 @@ export function fieldDecompress(src: Buffer, uncompSize: number): Buffer | null 
 }
 
 /**
- * LZ compress matching en-client 0x628370.
+ * LZ compress matching client 0x628370.
  * Prefers back-references (cash lists are mostly empty slots → tiny wire size).
  */
 export function fieldCompress(src: Buffer): Buffer {
@@ -137,7 +137,7 @@ export function fieldCompress(src: Buffer): Buffer {
 }
 
 /**
- * Wrap an inner game packet as outbound 0x81 for en-client.
+ * Wrap an inner game packet as outbound 0x81 for client.
  * Client peel (0x654ba1 / 0x666eaa) decompresses the body directly — no crypt/crc32.
  * Outer: magic=uncompSize, opcode=0x81, length=bodyLen (comp only), crc=magic+0x81+bodyLen.
  */

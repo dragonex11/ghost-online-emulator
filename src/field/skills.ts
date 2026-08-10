@@ -1,12 +1,13 @@
 import type { RowDataPacket } from "mysql2";
 import { query, execute } from "../db.js";
 import { writeHeader } from "../net/packet.js";
+import { DELETE_SKILLS_BY_CHARID_2, DELETE_SKILLS_BY_CHARID_3, DELETE_SKILLS_BY_CHARID_4, DELETE_SKILLS_BY_ID, INSERT_SKILLS, INSERT_SKILLS_BY_CHARID_AND_SKILLID, SELECT_CHARACTERS_BY_ID_3, SELECT_SKILLS_BY_CHARID, SELECT_SKILLS_BY_CHARID_2, SELECT_SKILLS_BY_CHARID_3, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_25, UPDATE_SKILLS_BY_ID } from "../db/queries/index.js";
 
 /** Unset job2/job3 in DB — packet byte becomes 0xFF via u8(). */
 export const JOB_UNSET = -1;
 
 /**
- * EN client `job2` is a **2nd-job class id**, not a light/dark flag:
+ * client `job2` is a **2nd-job class id**, not a light/dark flag:
  *   1 Knight, 2 Dark Knight, 3 Ninja, 4 Killer, 5 White Mage, 6 Black Mage,
  *   7 Royal Gladiator, 8 Demonic Gladiator
  * Order = odd, Chaos = even. 1st job selects the pair.
@@ -21,7 +22,7 @@ export function job2ClassId(job1: number, path: number): number {
 }
 
 /**
- * Wire Guild byte for CHAR_ALL / ENTERPLAYER (Thai `chr.Guild`):
+ * Wire Guild byte for CHAR_ALL / ENTERPLAYER:
  *   0 = Force of Order, 1 = Force of Chaos, 0xFF = unset
  * DB / GM `//faction` keep 1=Order, 2=Chaos (legacy convention) — convert here only.
  */
@@ -57,13 +58,7 @@ export function job2ClassName(job2Id: number): string {
 
 export async function ensureBeginnerSkills(charId: number): Promise<void> {
   await execute(
-    `INSERT INTO skills (charid, skillid, points)
-     SELECT ?, sid, 1 FROM (
-       SELECT 1 AS sid UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
-     ) s
-     WHERE NOT EXISTS (
-       SELECT 1 FROM skills x WHERE x.charid = ? AND x.skillid = s.sid
-     )`,
+    INSERT_SKILLS_BY_CHARID_AND_SKILLID,
     [charId, charId],
   );
 }
@@ -133,8 +128,8 @@ export function skillsForProgression(job: number, job2: number, job3: number): n
 async function grantSkillIds(charId: number, ids: number[]): Promise<void> {
   for (const sid of ids) {
     if (sid <= 0) continue;
-    const rows = await query<RowDataPacket[]>("SELECT id FROM skills WHERE charid=? AND skillid=?", [charId, sid]);
-    if (!rows.length) await execute("INSERT INTO skills (charid, skillid, points) VALUES (?,?,1)", [charId, sid, 1]);
+    const rows = await query<RowDataPacket[]>(SELECT_SKILLS_BY_CHARID_AND_SKILLID, [charId, sid]);
+    if (!rows.length) await execute(INSERT_SKILLS, [charId, sid, 1]);
   }
 }
 
@@ -146,27 +141,27 @@ async function grantSkillIds(charId: number, ids: number[]): Promise<void> {
 export async function syncJobSkills(charId: number, job: number, job2: number, job3: number): Promise<void> {
   await ensureBeginnerSkills(charId);
   const keep = new Set(skillsForProgression(job, job2, job3));
-  const rows = await query<RowDataPacket[]>("SELECT id, skillid FROM skills WHERE charid=?", [charId]);
+  const rows = await query<RowDataPacket[]>(SELECT_SKILLS_BY_CHARID, [charId]);
   for (const r of rows) {
     const sid = Number(r.skillid);
-    if (!keep.has(sid)) await execute("DELETE FROM skills WHERE id=?", [r.id]);
+    if (!keep.has(sid)) await execute(DELETE_SKILLS_BY_ID, [r.id]);
   }
   await grantSkillIds(charId, [...keep]);
 }
 
 /** Remove non-beginner skills (1st / 2nd / faction). */
 export async function clearAdvancedSkills(charId: number): Promise<void> {
-  await execute("DELETE FROM skills WHERE charid=? AND skillid>=10000", [charId]);
+  await execute(DELETE_SKILLS_BY_CHARID_2, [charId]);
 }
 
 /** Remove 2nd-job + faction skills only (keep matching 1st-job skills). */
 export async function clearJob2AndAboveSkills(charId: number): Promise<void> {
-  await execute("DELETE FROM skills WHERE charid=? AND skillid>=20000", [charId]);
+  await execute(DELETE_SKILLS_BY_CHARID_3, [charId]);
 }
 
 /** Remove faction skills only. */
 export async function clearFactionSkills(charId: number): Promise<void> {
-  await execute("DELETE FROM skills WHERE charid=? AND skillid>=30000", [charId]);
+  await execute(DELETE_SKILLS_BY_CHARID_4, [charId]);
 }
 
 /**
@@ -176,12 +171,12 @@ export async function clearFactionSkills(charId: number): Promise<void> {
 export async function clearMismatchedJob1Skills(charId: number, job: number): Promise<void> {
   const keep = new Set(job1SkillIds(job));
   const rows = await query<RowDataPacket[]>(
-    "SELECT id, skillid FROM skills WHERE charid=? AND skillid>=10000 AND skillid<20000",
+    SELECT_SKILLS_BY_CHARID_2,
     [charId],
   );
   for (const r of rows) {
     const sid = Number(r.skillid);
-    if (!keep.has(sid)) await execute("DELETE FROM skills WHERE id=?", [r.id]);
+    if (!keep.has(sid)) await execute(DELETE_SKILLS_BY_ID, [r.id]);
   }
 }
 
@@ -195,18 +190,18 @@ export function maxSkillLevel(skillId: number): number {
 
 /** GM `//maxskills`: set every owned skill to its cap. */
 export async function maxAllSkills(charId: number): Promise<number> {
-  const rows = await query<RowDataPacket[]>("SELECT id, skillid FROM skills WHERE charid=?", [charId]);
+  const rows = await query<RowDataPacket[]>(SELECT_SKILLS_BY_CHARID, [charId]);
   let n = 0;
   for (const r of rows) {
     const cap = maxSkillLevel(Number(r.skillid));
-    await execute("UPDATE skills SET points=? WHERE id=?", [cap, r.id]);
+    await execute(UPDATE_SKILLS_BY_ID, [cap, r.id]);
     n++;
   }
   return n;
 }
 
 /**
- * EN / C# SkillPacket layout — NOT the legacy 3-tab packing.
+ * SkillPacket layout (C# shape) — not the older 3-tab packing.
  * Type 0 beginner (10), 1 = 1st job (10), 2 = 2nd job (10), 3 = Guild/faction (20), 4 = 4th (10×i32).
  */
 export type SkillBuckets = {
@@ -219,7 +214,7 @@ export type SkillBuckets = {
 
 async function skillsByType(charId: number): Promise<SkillBuckets> {
   const rows = await query<RowDataPacket[]>(
-    `SELECT id, skillid, points FROM skills WHERE charid = ? ORDER BY skillid`,
+    SELECT_SKILLS_BY_CHARID_3,
     [charId],
   );
   const t0: RowDataPacket[] = [];
@@ -319,7 +314,7 @@ export async function skillPointUp(charId: number, type: number, slot: number): 
   if (type < 0 || type > 4 || slot < 0 || slot > maxSlot) {
     return { ok: false, reason: `bad type/slot ${type}/${slot}` };
   }
-  const chars = await query<RowDataPacket[]>("SELECT sk_point FROM characters WHERE ID=?", [charId]);
+  const chars = await query<RowDataPacket[]>(SELECT_CHARACTERS_BY_ID_3, [charId]);
   if (!chars.length) return { ok: false, reason: "no char" };
   const sk = Number(chars[0]!.sk_point ?? 0);
   if (sk < 1) return { ok: false, reason: "no sk_point" };
@@ -335,7 +330,7 @@ export async function skillPointUp(charId: number, type: number, slot: number): 
   if (pts >= cap) return { ok: false, reason: `capped skill=${skillId} pts=${pts}` };
 
   const newPts = pts + 1;
-  await execute("UPDATE skills SET points=? WHERE id=?", [newPts, row.id]);
-  await execute("UPDATE characters SET sk_point=sk_point-1 WHERE ID=? AND sk_point>0", [charId]);
+  await execute(UPDATE_SKILLS_BY_ID, [newPts, row.id]);
+  await execute(UPDATE_CHARACTERS_BY_ID_25, [charId]);
   return { ok: true, skillId, level: newPts, skPoint: sk - 1 };
 }
