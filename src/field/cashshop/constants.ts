@@ -1,6 +1,11 @@
-import type { CashItem } from "./state.js";
-
-/** Legacy `_CashShopCatIndex` / CashShopFactory lists */
+/** Catalog item shape (category assigned at insert time). */
+export type CashCatalogEntry = {
+  itemId: number;
+  bargain: number;
+  term: number;
+  price: number;
+  flag: number;
+};
 export const CAT_NAMES = [
   "boy_eyes",
   "girl_eyes",
@@ -35,7 +40,7 @@ export const RUN_TRAIL_IDS = new Set([8950101, 8950102, 8950103, 8950104, 895010
 export const UNSUPPORTED_PRODUCE_IDS = new Set([8950106, 8950107]);
 
 /** HOT Hot tab (treasure cat 19): gacha boxes, event buffs, Server Scroll. */
-export const HOT_TREASURE_ITEMS: Omit<CashItem, "category">[] = [
+export const HOT_TREASURE_ITEMS: Omit<CashCatalogEntry, never>[] = [
   { itemId: 8890044, bargain: 300, term: -1, price: 300, flag: 0 },
   { itemId: 8890101, bargain: 300, term: -1, price: 300, flag: 0 },
   { itemId: 8890050, bargain: 300, term: -1, price: 300, flag: 0 },
@@ -45,7 +50,7 @@ export const HOT_TREASURE_ITEMS: Omit<CashItem, "category">[] = [
 ];
 
 /** Ensure base pets 001–003 and event pets 201–207. */
-export const ENSURE_PETS: Omit<CashItem, "category">[] = [
+export const ENSURE_PETS: Omit<CashCatalogEntry, never>[] = [
   { itemId: 9210011, bargain: 129, term: -1, price: 129, flag: 0 },
   { itemId: 9210012, bargain: 129, term: -1, price: 129, flag: 0 },
   { itemId: 9210013, bargain: 129, term: -1, price: 129, flag: 0 },
@@ -71,7 +76,7 @@ export const ENSURE_PETS: Omit<CashItem, "category">[] = [
   { itemId: 9212071, bargain: 149, term: -1, price: 149, flag: 0 },
 ];
 
-export const PET_EQ_DEFAULTS: Omit<CashItem, "category">[] = [
+export const PET_EQ_DEFAULTS: Omit<CashCatalogEntry, never>[] = [
   { itemId: 7820501, bargain: 49, term: -1, price: 49, flag: 0 },
   { itemId: 9220011, bargain: 159, term: -1, price: 159, flag: 0 },
   { itemId: 9220012, bargain: 159, term: -1, price: 159, flag: 0 },

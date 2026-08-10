@@ -7,6 +7,29 @@ import { writeHeader } from "../../net/packet.js";
 import { PACKET_MAGIC } from "../../protocol/magic.js";
 import { INSERT_CASH_INVEN, SELECT_CASH_INVEN_BY_CHARID, SELECT_CASH_INVEN_BY_CHARID_2, SELECT_CASH_INVEN_BY_CHARID_3, SELECT_CASH_SHOP, SELECT_GIFTS_BY_NAME_AND_RECEIVE, SELECT_USERS_BY_ACCOUNTID, SELECT_USERS_BY_ACCOUNTID_2, UPDATE_GIFTS_BY_ID, UPDATE_USERS_BY_ACCOUNTID } from "../../db/queries/index.js";
 
+import {
+  CAT_NAMES,
+  CASH_CATEGORY_COUNT,
+  CASH_SLOTS_PER_CATEGORY,
+  COMPANION_PET_ID_MAX,
+  COMPANION_PET_ID_MIN,
+  ENSURE_PETS,
+  FASHION_CATEGORY_INDICES,
+  HOT_TREASURE_ITEMS,
+  LUCKBAG_CATEGORY_INDEX,
+  MAX_ITEMS_PER_CATEGORY,
+  PET_CATEGORY_INDEX,
+  PET_EQ_CATEGORY_INDEX,
+  PET_EQ_DEFAULTS,
+  PET_EQ_SUPPORTED,
+  PILL_CATEGORY_INDEX,
+  PRODUCE_CATEGORY_INDEX,
+  RUN_TRAIL_IDS,
+  TREASURE_CATEGORY_INDEX,
+  UNSUPPORTED_PRODUCE_IDS,
+  cashBuyAmount,
+} from "./constants.js";
+
 export type CashItem = {
   category: number;
   itemId: number;
@@ -16,37 +39,13 @@ export type CashItem = {
   flag: number;
 };
 
-/** Legacy `_CashShopCatIndex` / CashShopFactory lists */
-const CAT_NAMES = [
-  "boy_eyes",
-  "girl_eyes",
-  "boy_hair",
-  "girl_hair",
-  "face1",
-  "face2",
-  "hat",
-  "boy_dress",
-  "girl_dress",
-  "mantle",
-  "luckbag",
-  "produce",
-  "amulet",
-  "pill",
-  "talisman",
-  "pet",
-  "peteq",
-  "petcon",
-  "guard",
-  "treasure",
-];
-
-const byCat: CashItem[][] = Array.from({ length: 20 }, () => []);
+const byCat: CashItem[][] = Array.from({ length: CASH_CATEGORY_COUNT }, () => []);
 let catalog: CashItem[] = [];
 
 function pushItem(cat: number, item: Omit<CashItem, "category">, seen: Set<number>): void {
   if (cat < 0 || cat > 19) return;
   if (seen.has(item.itemId)) return;
-  if (byCat[cat]!.length >= 300) return;
+  if (byCat[cat]!.length >= MAX_ITEMS_PER_CATEGORY) return;
   if (!Number.isFinite(item.itemId) || item.itemId <= 0) return;
   seen.add(item.itemId);
   const full: CashItem = { category: cat, ...item };
@@ -103,16 +102,9 @@ function loadPetSpriteIds(): Set<number> {
   return ids;
 }
 
-/** Real companion pets (921xxxx). 922xxxx / 7820501 are pet equipment. */
 function isCompanionPetId(itemId: number): boolean {
-  return itemId >= 9210000 && itemId < 9220000;
+  return itemId >= COMPANION_PET_ID_MIN && itemId < COMPANION_PET_ID_MAX;
 }
-
-/**
- * Client pet equipment with icons (item.itm + pet_deco.csp = 3 muffler frames).
- * 9220021–9220091 are DB leftovers with no item.itm / deco frames → blank shop slots.
- */
-const PET_EQ_SUPPORTED = new Set([7820501, 9220011, 9220012, 9220013]);
 
 function isPetEquipmentId(itemId: number): boolean {
   return PET_EQ_SUPPORTED.has(itemId);
@@ -127,17 +119,17 @@ function isPetEquipmentId(itemId: number): boolean {
 function filterClientItems(): void {
   const itmIds = loadItemItmIds();
   const petSpr = loadPetSpriteIds();
-  const fashionCats = new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); // eyes..mantle
+  const fashionCats = FASHION_CATEGORY_INDICES;
   let removed = 0;
   for (let c = 0; c < byCat.length; c++) {
     const before = byCat[c]!.length;
-    if (c === 15) {
+    if (c === PET_CATEGORY_INDEX) {
       byCat[c] = byCat[c]!.filter((it) => {
         if (!isCompanionPetId(it.itemId)) return false;
         const spr = Math.floor(it.itemId / 10) % 1000;
         return petSpr.has(spr) && spr > 0;
       });
-    } else if (c === 16) {
+    } else if (c === PET_EQ_CATEGORY_INDEX) {
       byCat[c] = byCat[c]!.filter((it) => PET_EQ_SUPPORTED.has(it.itemId));
     } else if (fashionCats.has(c) && itmIds.size > 0) {
       byCat[c] = byCat[c]!.filter((it) => itmIds.has(it.itemId));
@@ -152,58 +144,9 @@ function filterClientItems(): void {
   }
 }
 
-/**
- * Foot-trail cash items (8950101–8950105). client treats these as run FX when
- * equipped/unsealed (game.exe compares 0x889155–0x889159 and picks trail effect ids).
- * 8950106/7 have no client refs — drop them from mall lists.
- */
-const RUN_TRAIL_IDS = new Set([8950101, 8950102, 8950103, 8950104, 8950105]);
-const UNSUPPORTED_PRODUCE_IDS = new Set([8950106, 8950107]);
-
-/** HOT Hot tab (treasure cat 19): gacha boxes, event buffs, Server Scroll. */
-const HOT_TREASURE_ITEMS: Omit<CashItem, "category">[] = [
-  { itemId: 8890044, bargain: 300, term: -1, price: 300, flag: 0 }, // Gift Box
-  { itemId: 8890101, bargain: 300, term: -1, price: 300, flag: 0 }, // Old Treasure Box
-  { itemId: 8890050, bargain: 300, term: -1, price: 300, flag: 0 }, // Christmas sock
-  { itemId: 8890112, bargain: 300, term: -1, price: 300, flag: 0 }, // Lucky Spring
-  { itemId: 8890200, bargain: 300, term: -1, price: 300, flag: 0 }, // Golden Xmas sox
-  { itemId: 8842002, bargain: 49, term: -1, price: 49, flag: 0 }, // Server Scroll
-];
-
-/**
- * Ensure base pets 001–003 (incl. missing 9210012) and event pets 201–207.
- * 205–207 have sprites on disk but were never in commodity tables.
- */
-const ENSURE_PETS: Omit<CashItem, "category">[] = [
-  { itemId: 9210011, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210012, bargain: 129, term: -1, price: 129, flag: 0 }, // was missing from DB
-  { itemId: 9210013, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210021, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210022, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210023, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210031, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210032, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9210033, bargain: 129, term: -1, price: 129, flag: 0 },
-  // 201–204 (commodity) + 205–207 (sprites only)
-  { itemId: 9212011, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212012, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212013, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212014, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212021, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212022, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212023, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212031, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212041, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212043, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212044, bargain: 129, term: -1, price: 129, flag: 0 },
-  { itemId: 9212051, bargain: 149, term: -1, price: 149, flag: 0 },
-  { itemId: 9212061, bargain: 149, term: -1, price: 149, flag: 0 },
-  { itemId: 9212071, bargain: 149, term: -1, price: 149, flag: 0 },
-];
-
 /** Move mufflers / name tag out of Pets into Pet Equipment; ensure pets 001–003 + 201–207. */
 function rearrangePetEquipment(): void {
-  const pets = byCat[15] ?? [];
+  const pets = byCat[PET_CATEGORY_INDEX] ?? [];
   const keepPets: CashItem[] = [];
   const peteq: CashItem[] = [];
   const peteqSeen = new Set<number>();
@@ -212,7 +155,7 @@ function rearrangePetEquipment(): void {
   for (const it of pets) {
     if (isPetEquipmentId(it.itemId) || (it.itemId >= 9220000 && it.itemId < 9230000) || it.itemId === 7820501) {
       if (PET_EQ_SUPPORTED.has(it.itemId) && !peteqSeen.has(it.itemId)) {
-        peteq.push({ ...it, category: 16 });
+        peteq.push({ ...it, category: PET_EQ_CATEGORY_INDEX });
         peteqSeen.add(it.itemId);
       }
       // drop unsupported 9220021–9220091 (invisible in client)
@@ -224,27 +167,20 @@ function rearrangePetEquipment(): void {
 
   for (const d of ENSURE_PETS) {
     if (!petSeen.has(d.itemId)) {
-      keepPets.push({ category: 15, ...d });
+      keepPets.push({ category: PET_CATEGORY_INDEX, ...d });
       petSeen.add(d.itemId);
     }
   }
 
-  // Only supported equipment (Name Tag + 3 muffler colors).
-  const eqDefaults: Omit<CashItem, "category">[] = [
-    { itemId: 7820501, bargain: 49, term: -1, price: 49, flag: 0 },
-    { itemId: 9220011, bargain: 159, term: -1, price: 159, flag: 0 }, // Red
-    { itemId: 9220012, bargain: 159, term: -1, price: 159, flag: 0 }, // Blue
-    { itemId: 9220013, bargain: 159, term: -1, price: 159, flag: 0 }, // Yellow
-  ];
-  for (const d of eqDefaults) {
+  for (const d of PET_EQ_DEFAULTS) {
     if (!peteqSeen.has(d.itemId)) {
-      peteq.push({ category: 16, ...d });
+      peteq.push({ category: PET_EQ_CATEGORY_INDEX, ...d });
       peteqSeen.add(d.itemId);
     }
   }
 
-  byCat[15] = keepPets;
-  byCat[16] = peteq;
+  byCat[PET_CATEGORY_INDEX] = keepPets;
+  byCat[PET_EQ_CATEGORY_INDEX] = peteq;
   catalog = byCat.flat();
   const sprs = new Set(keepPets.map((p) => Math.floor(p.itemId / 10) % 1000));
   console.log(
@@ -262,32 +198,31 @@ function rearrangePetEquipment(): void {
  * (same 3-slot shape as Charm). 0x124 is the Best/HOT list in docs; we fill both.
  */
 function rearrangeHotMileageTabs(): void {
-  const produce = byCat[11] ?? [];
+  const produce = byCat[PRODUCE_CATEGORY_INDEX] ?? [];
   const trails: CashItem[] = [];
   const frames: CashItem[] = [];
   for (const it of produce) {
     if (UNSUPPORTED_PRODUCE_IDS.has(it.itemId)) continue;
     if (RUN_TRAIL_IDS.has(it.itemId)) {
-      trails.push({ ...it, category: 13 });
+      trails.push({ ...it, category: PILL_CATEGORY_INDEX });
     } else {
       frames.push(it);
     }
   }
-  byCat[11] = frames;
-  const existingPill = (byCat[13] ?? []).filter((it) => !RUN_TRAIL_IDS.has(it.itemId));
-  byCat[13] = [...trails, ...existingPill];
+  byCat[PRODUCE_CATEGORY_INDEX] = frames;
+  const existingPill = (byCat[PILL_CATEGORY_INDEX] ?? []).filter((it) => !RUN_TRAIL_IDS.has(it.itemId));
+  byCat[PILL_CATEGORY_INDEX] = [...trails, ...existingPill];
 
-  // HOT Hot = treasure; strip these from luckbag so ticket stays fireworks-only.
   const treasureIds = new Set(HOT_TREASURE_ITEMS.map((i) => i.itemId));
-  byCat[10] = (byCat[10] ?? []).filter((it) => !treasureIds.has(it.itemId));
+  byCat[LUCKBAG_CATEGORY_INDEX] = (byCat[LUCKBAG_CATEGORY_INDEX] ?? []).filter((it) => !treasureIds.has(it.itemId));
   const treasure: CashItem[] = [];
   const seen = new Set<number>();
   for (const d of HOT_TREASURE_ITEMS) {
     if (seen.has(d.itemId)) continue;
-    treasure.push({ category: 19, ...d });
+    treasure.push({ category: TREASURE_CATEGORY_INDEX, ...d });
     seen.add(d.itemId);
   }
-  byCat[19] = treasure;
+  byCat[TREASURE_CATEGORY_INDEX] = treasure;
 
   catalog = byCat.flat();
   console.log(
@@ -304,7 +239,7 @@ function finalizeCashCatalog(): void {
 /** Load cash shop catalog from MySQL `cash_shop` only (seeded by database/schema.sql). */
 export async function loadCashShopFromDb(): Promise<void> {
   catalog = [];
-  for (let i = 0; i < 20; i++) byCat[i] = [];
+  for (let i = 0; i < CASH_CATEGORY_COUNT; i++) byCat[i] = [];
   const seen = new Map<number, Set<number>>();
   let fromDb = 0;
 
@@ -342,9 +277,6 @@ export async function loadCashShopFromDb(): Promise<void> {
 function emptyTermFor(_cat: number): number {
   return -1;
 }
-
-/** Cash shop slots per category (client loops 200). */
-export const CASH_SLOTS_PER_CATEGORY = 200;
 
 export function cashSlotCount(_magic?: number): number {
   return CASH_SLOTS_PER_CATEGORY;
@@ -453,12 +385,7 @@ export async function cashBuy(accountId: number, charId: number, itemId: number)
   let slot = -1;
   for (let i = 0; i < 20; i++) if (!usedSlots.has(i)) { slot = i; break; }
   if (slot < 0) return false;
-  let amount = 1;
-  if (itemId === 8842002) amount = 10;
-  if (itemId >= 8841001 && itemId <= 8841005) amount = 20;
-  if (itemId === 8890031 || itemId === 8890037) amount = 100;
-  if (itemId === 8890044 || itemId === 8890101 || itemId === 8890050) amount = 1;
-  if (itemId === 8890112 || itemId === 8890200) amount = 1;
+  const amount = cashBuyAmount(itemId);
   // All mall purchases arrive sealed (IsLocked=1) — tradeable until 0x140 unseal.
   const locked = 1;
   await execute(UPDATE_USERS_BY_ACCOUNTID, [item.bargain, accountId]);

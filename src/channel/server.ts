@@ -6,10 +6,28 @@ import { peelGame, opcodeOf, readCString, writeCString, writeHeader, logPkt, buf
 import { decodePassword, encodePassword } from "../login/passwordCodec.js";
 import { parseInetCredentials } from "../net/inetAuth.js";
 import { PACKET_MAGIC } from "../protocol/magic.js";
+import {
+  CHAR_SLOTS,
+  CHAR_SLOT_BYTES,
+  NEW_CHAR_SOUL_ITEM_ID,
+  OP_CHARSTATUS,
+  OP_CREATE_ACK,
+  OP_CREATE_CHAR,
+  OP_CHECK_NAME,
+  OP_DELETE_ACK,
+  OP_DELETE_CHAR,
+  OP_NAME_ACK,
+  EQUIP_SLOT_WEAPON,
+  EQUIP_SLOT_ARMOR,
+  EQUIP_SLOT_CAPE,
+  EQUIP_SLOT_HAT,
+  EQUIP_SLOT_EYE,
+  EQUIP_SLOT_FACE_UPPER,
+  EQUIP_SLOT_CLOTHES,
+  EQUIP_SLOT_FACE_LOWER,
+  EQUIP_SLOT_HAIR,
+} from "./constants.js";
 import { CREATE_CHAR_MULTI_STATEMENT, DELETE_CHARACTERS_BY_ID, DELETE_EQUIP_BY_CHARID, DELETE_OTHER_BY_CHARID, DELETE_SKILLS_BY_CHARID, DELETE_SPEND_BY_CHARID, SELECT_CHARACTERS_BY_NAME, SELECT_CHARACTERS_BY_NAME_AND_USERID, SELECT_CHARACTERS_BY_USERID, SELECT_CHARACTERS_BY_USERID_2, selectEquipByCharIdsIn, SELECT_USERS_BY_USERNAME } from "../db/queries/index.js";
-
-/** Character select: 2 slots × 88 bytes + 16-byte header = 192. */
-const CHAR_SLOTS = 2;
 
 type Client = {
   sock: net.Socket;
@@ -72,9 +90,9 @@ async function charStatus(accountId: number, magic = PACKET_MAGIC, unk = 0): Pro
     [accountId],
   );
   const slots = CHAR_SLOTS;
-  const total = 16 + slots * 88;
+  const total = 16 + slots * CHAR_SLOT_BYTES;
   const buf = Buffer.alloc(total, 0);
-  writeHeader(buf, 0x0009, total, magic, unk);
+  writeHeader(buf, OP_CHARSTATUS, total, magic, unk);
   buf.writeUInt32LE(Math.min(chars.length, slots), 12);
 
   const n = Math.min(chars.length, slots);
@@ -83,7 +101,7 @@ async function charStatus(accountId: number, magic = PACKET_MAGIC, unk = 0): Pro
 
   for (let i = 0; i < n; i++) {
     const c = chars[i]!;
-    const base = 16 + i * 88;
+    const base = 16 + i * CHAR_SLOT_BYTES;
     writeCString(buf, base, String(c.name ?? ""), 40);
     // sex@+40, level@+41, job@+42 relative to slot base
     buf.writeUInt8(Number(c.sex ?? 0), base + 40);
@@ -112,15 +130,15 @@ async function charStatus(accountId: number, magic = PACKET_MAGIC, unk = 0): Pro
     buf.writeUInt8(hasFaction ? 1 : 0, base + 45);
 
     const eq = equips.get(Number(c.ID)) ?? {};
-    buf.writeUInt32LE(eq[0] ?? 0, base + 52); // weapon
-    buf.writeUInt32LE(eq[1] ?? 0, base + 56); // armor
-    buf.writeUInt32LE(eq[9] ?? 0, base + 60); // faceUpper
-    buf.writeUInt32LE(eq[12] ?? 0, base + 64); // faceLower
-    buf.writeUInt32LE(eq[6] ?? 0, base + 68); // hat
-    buf.writeUInt32LE(eq[8] ?? 0, base + 72); // eye
-    buf.writeUInt32LE(eq[11] ?? 0, base + 76); // clothes
-    buf.writeUInt32LE(eq[4] ?? 0, base + 80); // cape
-    buf.writeUInt32LE(eq[7] ?? 0, base + 84); // hair
+    buf.writeUInt32LE(eq[EQUIP_SLOT_WEAPON] ?? 0, base + 52);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_ARMOR] ?? 0, base + 56);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_FACE_UPPER] ?? 0, base + 60);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_FACE_LOWER] ?? 0, base + 64);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_HAT] ?? 0, base + 68);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_EYE] ?? 0, base + 72);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_CLOTHES] ?? 0, base + 76);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_CAPE] ?? 0, base + 80);
+    buf.writeUInt32LE(eq[EQUIP_SLOT_HAIR] ?? 0, base + 84);
   }
   return buf;
 }
@@ -139,7 +157,7 @@ async function createChar(accountId: number, pkt: Buffer): Promise<number> {
   const hair = pkt.readUInt32LE(40);
   const weapon = pkt.readUInt32LE(44);
   const armor = pkt.readUInt32LE(48);
-  const soul = 8510011;
+  const soul = NEW_CHAR_SOUL_ITEM_ID;
 
   // Two remote DB round-trips total (was ~18): meta SELECT, then multi-statement inserts.
   const numChars = await withConnection(async (conn) => {
@@ -188,7 +206,7 @@ async function deleteChar(accountId: number, pkt: Buffer): Promise<number> {
 
 function createAck(numChars: number, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
-  writeHeader(b, 0x000b, 16, magic, unk);
+  writeHeader(b, OP_CREATE_ACK, 16, magic, unk);
   b.writeUInt8(1, 12);
   b.writeUInt8(numChars & 0xff, 13);
   return b;
@@ -196,14 +214,14 @@ function createAck(numChars: number, magic = PACKET_MAGIC, unk = 0): Buffer {
 
 function deleteAck(numChars: number, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
-  writeHeader(b, 0x000f, 16, magic, unk);
+  writeHeader(b, OP_DELETE_ACK, 16, magic, unk);
   b.writeUInt32LE(numChars, 12);
   return b;
 }
 
 function nameAck(ok: boolean, magic = PACKET_MAGIC, unk = 0): Buffer {
   const b = Buffer.alloc(16, 0);
-  writeHeader(b, 0x000d, 16, magic, unk);
+  writeHeader(b, OP_NAME_ACK, 16, magic, unk);
   b.writeUInt32LE(ok ? 1 : 0, 12);
   return b;
 }
@@ -217,7 +235,7 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
   );
   logPkt("IN", `channel op=${op.toString(16)}`, pkt);
 
-  if (op === 0x0008) {
+  if (op === OP_CHARSTATUS) {
     // Future: age-verified channels reject via GAME_ACK status 0x1C.
     // PVP / Guild War (ch 10) are field/channel rules, not SERVERLIST flags — see login/server.ts.
     const aid = await getAccountId(pkt);
@@ -232,7 +250,7 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
       `[channel] CHARSTATUS sent account=${aid} magic=0x${client.magic.toString(16)} bytes=${list.length} head=${bufToHex(list.subarray(0, 16))}`,
     );
     logPkt("OUT", "channel CHARSTATUS", list);
-  } else if (op === 0x000a) {
+  } else if (op === OP_CREATE_CHAR) {
     if (!client.accountId) return;
     const t0 = Date.now();
     const n = await createChar(client.accountId, pkt);
@@ -244,12 +262,12 @@ async function handlePacket(client: Client, pkt: Buffer): Promise<void> {
     } else {
       console.log(`[channel] create failed account=${client.accountId} ${Date.now() - t0}ms`);
     }
-  } else if (op === 0x000e) {
+  } else if (op === OP_DELETE_CHAR) {
     if (!client.accountId) return;
     const n = await deleteChar(client.accountId, pkt);
     // legacy: deleteAck only (no CHARSTATUS)
     client.sock.write(deleteAck(n, client.magic, client.unk));
-  } else if (op === 0x000c) {
+  } else if (op === OP_CHECK_NAME) {
     const ok = await checkName(pkt);
     client.sock.write(nameAck(ok, client.magic, client.unk));
   }

@@ -9,23 +9,19 @@ import { decodePassword, encodePassword, readPasswordKey } from "./passwordCodec
 import type { RowDataPacket } from "mysql2";
 import { INSERT_USERS, SELECT_USERS, SELECT_USERS_BY_USERNAME_3 } from "../db/queries/index.js";
 
-const VALIDPAS = hexToBuf("AA550500310000E80355AA");
-const INVALIDPAS = hexToBuf("AA550500310D00000055AA");
-
-/** Redirect client to field 127.0.0.1:15023 */
-const LPACKET = hexToBuf(
-  "AA551800350009003132372E302E302E31AF3A000000005F003B000055AA",
-);
-
-function hexLE32(n: number): string {
-  const v = n >>> 0;
-  return (
-    (v & 0xff).toString(16).padStart(2, "0") +
-    ((v >> 8) & 0xff).toString(16).padStart(2, "0") +
-    ((v >> 16) & 0xff).toString(16).padStart(2, "0") +
-    ((v >> 24) & 0xff).toString(16).padStart(2, "0")
-  ).toUpperCase();
-}
+import {
+  DEFAULT_CHANNEL_FLAG,
+  DEFAULT_CHANNEL_IP,
+  DEFAULT_MAX_PLAYERS,
+  INVALIDPAS,
+  LPACKET,
+  LOGIN_OPCODE_SERVERLIST,
+  SERVER_LIST_REFRESH_MS,
+  STOCK_CHANNEL_B_VALUE,
+  STOCK_LIST_REL_PATH,
+  VALIDPAS,
+  hexLE32,
+} from "./constants.js";
 
 /**
  * SERVERLIST_ACK (opcode 0x33) — future channel/server feature notes (server-only; client already supports):
@@ -49,7 +45,7 @@ function hexLE32(n: number): string {
  */
 /** Build private-server channel list: channel 1 -> 127.0.0.1:15013 */
 function buildServerList(): Buffer {
-  const ip = "127.0.0.1";
+  const ip = DEFAULT_CHANNEL_IP;
   const ipBuf = Buffer.from(ip, "ascii");
   const count = getOnlineCount();
   // payload after AA55 length field
@@ -57,7 +53,7 @@ function buildServerList(): Buffer {
   const entrySize = 2 + 2 + 2 + ipBuf.length + 2 + 2 + 4 + 4 + 4 + 4 + 1 + 4;
   // Keep similar structure to stock: header 28 bytes then entries
   const header = Buffer.alloc(28, 0);
-  header.writeUInt16LE(0x0033, 0);
+  header.writeUInt16LE(LOGIN_OPCODE_SERVERLIST, 0);
   // stock junk
   Buffer.from("D0CFCFCFCFCFCFCFCFCFCFCF", "hex").copy(header, 2);
   header.writeUInt16LE(1, 14); // something
@@ -77,15 +73,15 @@ function buildServerList(): Buffer {
   entry.writeUInt16LE(config.channelPort, o); o += 2; // 15013
   entry.writeUInt16LE(0, o); o += 2;
   entry.writeUInt32LE(count, o); o += 4;
-  entry.writeUInt32LE(800, o); o += 4;
-  entry.writeUInt32LE(12, o); o += 4;
+  entry.writeUInt32LE(DEFAULT_MAX_PLAYERS, o); o += 4;
+  entry.writeUInt32LE(STOCK_CHANNEL_B_VALUE, o); o += 4;
   entry.writeUInt32LE(0, o); o += 4;
-  entry.writeUInt8(1, o); o += 1; // list flag: stock 0/1/2 only (see block comment above)
+  entry.writeUInt8(DEFAULT_CHANNEL_FLAG, o); o += 1;
   entry.writeUInt32LE(config.udpPort, o); o += 4; // 13997
 
   // Also try loading stock template and patching FEEDFACE if present (compat)
   try {
-    const stockPath = path.join(config.rootDir, "src", "data", "str1_base.hex");
+    const stockPath = path.join(config.rootDir, ...STOCK_LIST_REL_PATH);
     if (fs.existsSync(stockPath)) {
       let hex = fs.readFileSync(stockPath, "utf8").trim();
       hex = hex.replace(/FEEDFACE/gi, hexLE32(count));
@@ -107,11 +103,11 @@ function buildServerList(): Buffer {
 function serverListPacket(): Buffer {
   // Use stock template with online count patched — the client expects full multi-channel layout
   try {
-    const stockPath = path.join(config.rootDir, "src", "data", "str1_base.hex");
+    const stockPath = path.join(config.rootDir, ...STOCK_LIST_REL_PATH);
     let hex = fs.readFileSync(stockPath, "utf8").trim();
     hex = hex.replace(/FEEDFACE/gi, hexLE32(getOnlineCount()));
     const full = Buffer.from(hex, "hex");
-    const ip = "127.0.0.1";
+    const ip = DEFAULT_CHANNEL_IP;
     // Patch EVERY channel entry IP -> 127.0.0.1 (padded) and port -> channelPort
     if (full.length > 50 && full[0] === 0xaa) {
       let off = 28; // first entry
@@ -245,7 +241,7 @@ export function startLoginServer(): net.Server {
       } catch {
         /* ignore */
       }
-    }, 8000);
+    }, SERVER_LIST_REFRESH_MS);
 
     sock.on("close", () => {
       clearInterval(refresh);
