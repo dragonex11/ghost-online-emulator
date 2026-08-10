@@ -1,4 +1,4 @@
-import { execute } from '../../db.js';
+import { execute } from '../../db/index.js';
 import { packetMagicOrDefault } from '../../protocol/magic.js';
 import {
   getTrade,
@@ -17,7 +17,7 @@ import {
   restoreTradeOffer,
   completeTrade,
   refreshBags,
-} from '../trade.js';
+} from '../features/trade/index.js';
 import { type Player, players, send } from '../player.js';
 import { moneyPacket } from '../packets/ui.js';
 import { UPDATE_CHARACTERS_BY_ID_9 } from "../../db/queries/index.js";

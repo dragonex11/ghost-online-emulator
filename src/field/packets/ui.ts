@@ -2,7 +2,7 @@ import type { Player } from "../player.js";
 import { players, send } from "../player.js";
 import { writeHeader, writeCString } from "../../net/packet.js";
 import { OP_FIELD_MAP_INFO } from "../../protocol/opcodes.js";
-import { getParty, buildPartyHpUpdate } from "../party.js";
+import { getParty, buildPartyHpUpdate } from "../features/party/index.js";
 
 export function writeChangeMapPacket(p: Player, map: number, region: number, x: number, y: number): Buffer {
   // CHANGEMAP 0x86: map/region as u16 @+16/+18 (unlike mapInfo 0x1c u8 packing).

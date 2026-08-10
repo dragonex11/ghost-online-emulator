@@ -1,6 +1,6 @@
 import { MOVE_OPS } from "../constants.js";
 import { type Player, players, broadcastMap, broadcastMapUdp } from "../player.js";
-import { trySpawnMonstersAfterReady } from "../monster-runtime.js";
+import { trySpawnMonstersAfterReady } from "../features/monsters/runtime.js";
 
 /** Keep live coords in sync — movement is mostly UDP, drops/touch use p.x/p.y */
 function updatePosFromMove(p: Player, pkt: Buffer, op: number): void {

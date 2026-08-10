@@ -1,16 +1,16 @@
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../db.js";
-import { writeHeader } from "../net/packet.js";
-import { PACKET_MAGIC } from "../protocol/magic.js";
-import { OP_FIELD_FISH_ACK } from "../protocol/opcodes.js";
+import { query, execute } from "../../../db/index.js";
+import { writeHeader } from "../../../net/packet.js";
+import { PACKET_MAGIC } from "../../../protocol/magic.js";
+import { OP_FIELD_FISH_ACK } from "../../../protocol/opcodes.js";
 import {
   addItemToInventory,
   refreshBagPackets,
   removeInvQty,
   setSpendUseSlot,
-} from "./inventory.js";
-import { type Player, send, broadcastMap } from "./player.js";
-import { SELECT_EQUIP_BY_CHARID, SELECT_SPEND_BY_CHARID, SELECT_SPEND_BY_CHARID_2, UPDATE_EQUIP_BY_CHARID } from "../db/queries/index.js";
+} from "../inventory/index.js";
+import { type Player, send, broadcastMap } from "../../player.js";
+import { SELECT_EQUIP_BY_CHARID, SELECT_SPEND_BY_CHARID, SELECT_SPEND_BY_CHARID_2, UPDATE_EQUIP_BY_CHARID } from "../../../db/queries/index.js";
 
 export function fishAck(charId: number, state: number, isFishing: number): Buffer {
   const b = Buffer.alloc(24, 0);

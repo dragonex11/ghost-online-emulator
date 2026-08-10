@@ -3,7 +3,7 @@ import path from "node:path";
 import net from "node:net";
 import type { RowDataPacket } from "mysql2";
 import { peelGame, writeHeader, writeCString, readCString } from "../net/packet.js";
-import { query, execute } from "../db.js";
+import { query, execute } from "../db/index.js";
 import { PACKET_MAGIC } from "../protocol/magic.js";
 import {
   DELETE_LETTERS_BY_ID_AND_TO_CHARID,

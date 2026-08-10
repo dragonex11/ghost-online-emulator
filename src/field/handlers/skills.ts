@@ -1,7 +1,7 @@
 import type { RowDataPacket } from 'mysql2';
-import { execute } from '../../db.js';
+import { execute } from '../../db/index.js';
 import { writeHeader } from '../../net/packet.js';
-import { getSkillByTypeSlot, maxSkillLevel } from '../skills.js';
+import { getSkillByTypeSlot, maxSkillLevel } from '../features/skills/index.js';
 import { loadCharRow, u16 } from '../packets/char.js';
 import { type Player, players, send, broadcastMap } from '../player.js';
 import { sendVital } from '../packets/ui.js';

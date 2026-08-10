@@ -10,12 +10,12 @@ import {
   tickWander,
   buildMonRegen,
   LIVE_INTERVAL_MS,
-} from "./monsters.js";
-import { loadDropRules, tickGroundDrops, buildDropClear } from "./drops.js";
-import { loadCashShopFromDb } from "./cashshop.js";
-import { loadPrices } from "./prices.js";
-import { endPShopIfActive } from "./pshop.js";
-import { getParty } from "./party.js";
+} from "./features/monsters/index.js";
+import { loadDropRules, tickGroundDrops, buildDropClear } from "./features/drops/index.js";
+import { loadCashShopFromDb } from "./features/cashshop/index.js";
+import { loadPrices } from "./features/prices/index.js";
+import { endPShopIfActive } from "./features/pshop/index.js";
+import { getParty } from "./features/party/index.js";
 import {
   type Player,
   players,
@@ -32,7 +32,7 @@ import {
   FIELD_HELLO_TOKEN,
 } from "./packets/hello.js";
 import { leavePacket } from "./packets/ui.js";
-import { broadcastMonRegen, maybeHibernateMap } from "./monster-runtime.js";
+import { broadcastMonRegen, maybeHibernateMap } from "./features/monsters/runtime.js";
 import { MOVE_OPS, relayPeerAction } from "./handlers/movement.js";
 import { handlePacket } from "./handlers/router.js";
 import { leaveParty } from "./handlers/party.js";

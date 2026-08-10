@@ -1,16 +1,16 @@
 import type { RowDataPacket } from "mysql2";
-import { query } from "../../db.js";
-import { rates } from "../../config.js";
-import { rollDrops, spawnDrop, buildDropSpawn, isSoulOrb, type GroundDrop } from "../drops.js";
+import { query } from "../../../db/index.js";
+import { rates } from "../../../config.js";
+import { rollDrops, spawnDrop, buildDropSpawn, isSoulOrb, type GroundDrop } from "../drops/index.js";
 import {
   updateMonsterPosition,
   updateFlyerPosition,
   updateFlyerToward,
   snapMonsterY,
-} from "../pex.js";
-import { mobMoveType } from "../mob_move_types.js";
-import { mobAttackType } from "../mob_attack_types.js";
-import { SELECT_MONSTER } from "../../db/queries/index.js";
+} from "../monsters/pex.js";
+import { mobMoveType } from "../monsters/move-types.js";
+import { mobAttackType } from "../monsters/attack-types.js";
+import { SELECT_MONSTER } from "../../../db/queries/index.js";
 
 export type Monster = {
   slot: number;

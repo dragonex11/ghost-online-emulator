@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../db.js";
-import { writeHeader } from "../net/packet.js";
-import { DELETE_SKILLS_BY_CHARID_2, DELETE_SKILLS_BY_CHARID_3, DELETE_SKILLS_BY_CHARID_4, DELETE_SKILLS_BY_ID, INSERT_SKILLS, INSERT_SKILLS_BY_CHARID_AND_SKILLID, SELECT_CHARACTERS_BY_ID_3, SELECT_SKILLS_BY_CHARID, SELECT_SKILLS_BY_CHARID_2, SELECT_SKILLS_BY_CHARID_3, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_25, UPDATE_SKILLS_BY_ID } from "../db/queries/index.js";
+import { query, execute } from "../../../db/index.js";
+import { writeHeader } from "../../../net/packet.js";
+import { DELETE_SKILLS_BY_CHARID_2, DELETE_SKILLS_BY_CHARID_3, DELETE_SKILLS_BY_CHARID_4, DELETE_SKILLS_BY_ID, INSERT_SKILLS, INSERT_SKILLS_BY_CHARID_AND_SKILLID, SELECT_CHARACTERS_BY_ID_3, SELECT_SKILLS_BY_CHARID, SELECT_SKILLS_BY_CHARID_2, SELECT_SKILLS_BY_CHARID_3, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_25, UPDATE_SKILLS_BY_ID } from "../../../db/queries/index.js";
 
 /** Unset job2/job3 in DB — packet byte becomes 0xFF via u8(). */
 export const JOB_UNSET = -1;

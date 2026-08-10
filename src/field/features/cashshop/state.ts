@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { RowDataPacket } from "mysql2";
-import { config } from "../../config.js";
-import { query, execute } from "../../db.js";
-import { writeHeader } from "../../net/packet.js";
-import { PACKET_MAGIC } from "../../protocol/magic.js";
-import { INSERT_CASH_INVEN, SELECT_CASH_INVEN_BY_CHARID, SELECT_CASH_INVEN_BY_CHARID_2, SELECT_CASH_INVEN_BY_CHARID_3, SELECT_CASH_SHOP, SELECT_GIFTS_BY_NAME_AND_RECEIVE, SELECT_USERS_BY_ACCOUNTID, SELECT_USERS_BY_ACCOUNTID_2, UPDATE_GIFTS_BY_ID, UPDATE_USERS_BY_ACCOUNTID } from "../../db/queries/index.js";
+import { config } from "../../../config.js";
+import { query, execute } from "../../../db/index.js";
+import { writeHeader } from "../../../net/packet.js";
+import { PACKET_MAGIC } from "../../../protocol/magic.js";
+import { INSERT_CASH_INVEN, SELECT_CASH_INVEN_BY_CHARID, SELECT_CASH_INVEN_BY_CHARID_2, SELECT_CASH_INVEN_BY_CHARID_3, SELECT_CASH_SHOP, SELECT_GIFTS_BY_NAME_AND_RECEIVE, SELECT_USERS_BY_ACCOUNTID, SELECT_USERS_BY_ACCOUNTID_2, UPDATE_GIFTS_BY_ID, UPDATE_USERS_BY_ACCOUNTID } from "../../../db/queries/index.js";
 
 import {
   CAT_NAMES,

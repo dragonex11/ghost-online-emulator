@@ -1,8 +1,8 @@
-import { execute, query } from "../db.js";
+import { execute, query } from "../../../db/index.js";
 import type { RowDataPacket } from "mysql2";
-import { writeHeader, writeCString } from "../net/packet.js";
-import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
-import { SELECT_EQUIP_BY_CHARID_9, SELECT_OTHER_BY_CHARID_4, SELECT_SPEND_BY_CHARID_5 } from "../db/queries/index.js";
+import { writeHeader, writeCString } from "../../../net/packet.js";
+import { addItemToInventory, removeInvQty, refreshBagPackets } from "../inventory/index.js";
+import { SELECT_EQUIP_BY_CHARID_9, SELECT_OTHER_BY_CHARID_4, SELECT_SPEND_BY_CHARID_5 } from "../../../db/queries/index.js";
 
 type ShopSlot = {
   itemId: number;

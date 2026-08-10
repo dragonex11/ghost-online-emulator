@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
-import { rates } from "../config.js";
-import { query } from "../db.js";
-import { SELECT_MONSTER_DROPS } from "../db/queries/index.js";
+import { rates } from "../../../config.js";
+import { query } from "../../../db/index.js";
+import { SELECT_MONSTER_DROPS } from "../../../db/queries/index.js";
 
 export type DropRule = {
   monsterId: number;

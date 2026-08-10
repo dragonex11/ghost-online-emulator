@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.js";
-import { monstersOnMap } from "./monsters.js";
+import { monstersOnMap } from "./features/monsters/index.js";
 
 export function deadTownMap(map: number): number {
   switch (map) {

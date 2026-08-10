@@ -1,4 +1,4 @@
-import { execute } from '../../db.js';
+import { execute } from '../../db/index.js';
 import { packetMagicOrDefault } from '../../protocol/magic.js';
 import {
   getParty,
@@ -11,7 +11,7 @@ import {
   buildPartyHpUpdate,
   buildPartyDismiss,
   type PartyMemberSnap,
-} from '../party.js';
+} from '../features/party/index.js';
 import { type Player, players, send } from '../player.js';
 import { moneyPacket } from '../packets/ui.js';
 

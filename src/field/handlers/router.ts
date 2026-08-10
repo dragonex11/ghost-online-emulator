@@ -1,6 +1,6 @@
 import type { RowDataPacket } from 'mysql2';
 import { rates, config } from '../../config.js';
-import { query, execute } from '../../db.js';
+import { query, execute } from '../../db/index.js';
 import {
   opcodeOf,
   readCString,
@@ -23,7 +23,7 @@ import {
   job2ClassName,
   job2PathFromId,
   job3ToWireGuild,
-} from '../skills.js';
+} from '../features/skills/index.js';
 import {
   loadMonsters,
   monstersOnMap,
@@ -45,7 +45,7 @@ import {
   displayPos,
   LIVE_INTERVAL_MS,
   type Monster,
-} from '../monsters.js';
+} from '../features/monsters/index.js';
 import {
   loadDropRules,
   getDrop,
@@ -56,7 +56,7 @@ import {
   spawnDrop,
   isSoulOrb,
   tickGroundDrops,
-} from '../drops.js';
+} from '../features/drops/index.js';
 import {
   loadCashShopFromDb,
   buildCashLists,
@@ -65,7 +65,7 @@ import {
   buildWarehouse,
   cashBuy,
   deliverCashGifts,
-} from '../cashshop.js';
+} from '../features/cashshop/index.js';
 import {
   buildAllBags,
   buildEquip,
@@ -87,17 +87,17 @@ import {
   setSpendUseSlot,
   buildSpend3,
   buildPetWorldState,
-} from '../inventory.js';
-import { applySpendRecover, spendRecoverEffect } from '../spend_effects.js';
+} from '../features/inventory/index.js';
+import { applySpendRecover, spendRecoverEffect } from '../features/spend/effects.js';
 import {
   activeBuffOrNull,
   applyEventBuff,
   isSpecialSpendItem,
   rollGachaBox,
   type BoxBuff,
-} from '../spend_boxes.js';
-import { handleQuestPacket, onMonsterKill, buildQuestAll } from '../quests.js';
-import { buildQuickSlotAll, saveQuickSlot } from '../hotkeys.js';
+} from '../features/spend/boxes.js';
+import { handleQuestPacket, onMonsterKill, buildQuestAll } from '../features/quests/index.js';
+import { buildQuickSlotAll, saveQuickSlot } from '../features/hotkeys/index.js';
 import {
   dispatchPShop,
   handlePShopBuy,
@@ -106,7 +106,7 @@ import {
   listActivePShops,
   buildPShopStartPkt,
   endPShopIfActive,
-} from '../pshop.js';
+} from '../features/pshop/index.js';
 import {
   isPartyOpcode,
   getParty,
@@ -119,7 +119,7 @@ import {
   buildPartyHpUpdate,
   buildPartyDismiss,
   type PartyMemberSnap,
-} from '../party.js';
+} from '../features/party/index.js';
 import {
   isTradeOpcode,
   getTrade,
@@ -138,7 +138,7 @@ import {
   restoreTradeOffer,
   completeTrade,
   refreshBags,
-} from '../trade.js';
+} from '../features/trade/index.js';
 import {
   type Player,
   players,
@@ -173,17 +173,17 @@ import {
   levelUpPacket,
   playerDeadAck,
 } from '../packets/ui.js';
-import { handleGm, runGmCommand } from '../gm.js';
-import { fishAck, startFishing, fishCatchTick } from '../fishing.js';
+import { handleGm, runGmCommand } from '../features/gm/index.js';
+import { fishAck, startFishing, fishCatchTick } from '../features/fishing/index.js';
 import { CHAT_TYPE_MAP, CHAT_TYPE_WHISPER, isCashMall } from '../constants.js';
-import { getPrices } from '../prices.js';
+import { getPrices } from '../features/prices/index.js';
 import { initPacket } from '../packets/hello.js';
 import {
   clearMonCombat,
   scheduleEnterMonsters,
   maybeHibernateMap,
   ensureMonCombatReady,
-} from '../monster-runtime.js';
+} from '../features/monsters/runtime.js';
 import { MOVE_OPS, relayPeerAction } from './movement.js';
 import { resolveCharId } from './auth.js';
 import { chatPacket, findPlayerByName, readWhisperTarget } from './chat.js';

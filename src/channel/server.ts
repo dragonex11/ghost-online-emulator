@@ -1,7 +1,7 @@
 import net from "node:net";
 import type { RowDataPacket } from "mysql2";
 import { config } from "../config.js";
-import { query, execute, withConnection } from "../db.js";
+import { query, execute, withConnection } from "../db/index.js";
 import { peelGame, opcodeOf, readCString, writeCString, writeHeader, logPkt, bufToHex } from "../net/packet.js";
 import { decodePassword, encodePassword } from "../login/passwordCodec.js";
 import { parseInetCredentials } from "../net/inetAuth.js";

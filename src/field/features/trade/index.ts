@@ -6,10 +6,10 @@
  *          FAIL 0x97, SUCCESS 0x98, PUT 0x9A
  */
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../db.js";
-import { writeHeader } from "../net/packet.js";
-import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
-import { SELECT_EQUIP_BY_CHARID_11, SELECT_EQUIP_BY_CHARID_AND_TYPE_2, SELECT_OTHER_BY_CHARID_5, SELECT_SPEND_BY_CHARID_6, UPDATE_EQUIP_BY_CHARID_7 } from "../db/queries/index.js";
+import { query, execute } from "../../../db/index.js";
+import { writeHeader } from "../../../net/packet.js";
+import { addItemToInventory, removeInvQty, refreshBagPackets } from "../inventory/index.js";
+import { SELECT_EQUIP_BY_CHARID_11, SELECT_EQUIP_BY_CHARID_AND_TYPE_2, SELECT_OTHER_BY_CHARID_5, SELECT_SPEND_BY_CHARID_6, UPDATE_EQUIP_BY_CHARID_7 } from "../../../db/queries/index.js";
 
 export type TradeItem = {
   itemId: number;

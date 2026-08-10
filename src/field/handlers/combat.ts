@@ -1,12 +1,12 @@
 import type { RowDataPacket } from 'mysql2';
 import { config, rates } from '../../config.js';
-import { execute } from '../../db.js';
-import { activeBuffOrNull } from '../spend_boxes.js';
-import { getParty } from '../party.js';
+import { execute } from '../../db/index.js';
+import { activeBuffOrNull } from '../features/spend/boxes.js';
+import { getParty } from '../features/party/index.js';
 import {
   monstersOnMap,
   displayPos,
-} from '../monsters.js';
+} from '../features/monsters/index.js';
 import { deadTownMap, deadTownSpawn } from '../maps.js';
 import { charAll } from '../packets/char.js';
 import { lvExpPacket, levelUpPacket, playerDeadAck, sendVital } from '../packets/ui.js';

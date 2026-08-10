@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { config } from "../config.js";
+import { config } from "../../../config.js";
 
 type PexGrid = {
   h: number;

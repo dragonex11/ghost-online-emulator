@@ -2,7 +2,7 @@ import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
 import { config, rates } from "../config.js";
-import { query, execute } from "../db.js";
+import { query, execute } from "../db/index.js";
 import { frameAA55, peelAA55, hexToBuf, logPkt, bufToHex } from "../net/packet.js";
 import { getOnlineCount } from "../net/online.js";
 import { decodePassword, encodePassword, readPasswordKey } from "./passwordCodec.js";

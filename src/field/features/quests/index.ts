@@ -1,10 +1,10 @@
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../db.js";
-import { rates } from "../config.js";
-import { writeHeader } from "../net/packet.js";
-import { addItemToInventory, removeInvQty, refreshBagPackets } from "./inventory.js";
-import { ensureBeginnerSkills, buildSkillAll } from "./skills.js";
-import { DELETE_QUESTS_BY_CHARID_AND_QUESTID, INSERT_QUESTS, INSERT_SKILLS, SELECT_CHARACTERS_BY_ID_2, SELECT_EQUIP_BY_CHARID_AND_TYPE, SELECT_QUESTS_BY_CHARID, SELECT_QUESTS_BY_CHARID_AND_QUESTID, SELECT_QUESTS_BY_CHARID_AND_STATE, selectRowDynamicTableCol, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_10, UPDATE_CHARACTERS_BY_ID_11, UPDATE_CHARACTERS_BY_ID_12, UPDATE_CHARACTERS_BY_ID_13, UPDATE_QUESTS_BY_CHARID_AND_QUESTID, UPDATE_QUESTS_BY_CHARID_AND_QUESTID_2, UPDATE_QUESTS_BY_ID, UPDATE_QUESTS_BY_ID_2 } from "../db/queries/index.js";
+import { query, execute } from "../../../db/index.js";
+import { rates } from "../../../config.js";
+import { writeHeader } from "../../../net/packet.js";
+import { addItemToInventory, removeInvQty, refreshBagPackets } from "../inventory/index.js";
+import { ensureBeginnerSkills, buildSkillAll } from "../skills/index.js";
+import { DELETE_QUESTS_BY_CHARID_AND_QUESTID, INSERT_QUESTS, INSERT_SKILLS, SELECT_CHARACTERS_BY_ID_2, SELECT_EQUIP_BY_CHARID_AND_TYPE, SELECT_QUESTS_BY_CHARID, SELECT_QUESTS_BY_CHARID_AND_QUESTID, SELECT_QUESTS_BY_CHARID_AND_STATE, selectRowDynamicTableCol, SELECT_SKILLS_BY_CHARID_AND_SKILLID, UPDATE_CHARACTERS_BY_ID_10, UPDATE_CHARACTERS_BY_ID_11, UPDATE_CHARACTERS_BY_ID_12, UPDATE_CHARACTERS_BY_ID_13, UPDATE_QUESTS_BY_CHARID_AND_QUESTID, UPDATE_QUESTS_BY_CHARID_AND_QUESTID_2, UPDATE_QUESTS_BY_ID, UPDATE_QUESTS_BY_ID_2 } from "../../../db/queries/index.js";
 
 /** remote DB: quests(charid, questid, state, progress). Packets match legacy legacy quests. */
 

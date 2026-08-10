@@ -6,8 +6,8 @@ import {
   buildMonAllCreate,
   resetMonstersOnMap,
   hibernateMonstersOnMap,
-} from "./monsters.js";
-import { type Player, players, send, mapHasPlayers } from "./player.js";
+} from "../monsters/index.js";
+import { type Player, players, send, mapHasPlayers } from "../../player.js";
 
 /** client drops raw frames with totalLen > 0x7FFF; Look list is 39212. */
 

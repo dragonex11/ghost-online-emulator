@@ -4,9 +4,9 @@ import net from "node:net";
 import dgram from "node:dgram";
 import { logPkt } from "../net/packet.js";
 import { encodeFieldFrame, type FieldKeys } from "../net/fieldCodec.js";
-import { isPShopOutOpcode } from "./pshop.js";
+import { isPShopOutOpcode } from "./features/pshop/index.js";
 import { PACKET_MAGIC } from "../protocol/magic.js";
-import type { BoxBuff } from "./spend_boxes.js";
+import type { BoxBuff } from "./features/spend/boxes.js";
 
 export type Player = {
   sock: net.Socket;

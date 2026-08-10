@@ -1,7 +1,7 @@
-import { rates } from "../config.js";
-import { execute } from "../db.js";
-import { readCString } from "../net/packet.js";
-import { PACKET_MAGIC } from "../protocol/magic.js";
+import { rates } from "../../../config.js";
+import { execute } from "../../../db/index.js";
+import { readCString } from "../../../net/packet.js";
+import { PACKET_MAGIC } from "../../../protocol/magic.js";
 import {
   ensureBeginnerSkills,
   syncJobSkills,
@@ -12,12 +12,12 @@ import {
   job2ClassId,
   job2ClassName,
   job2PathFromId,
-} from "./skills.js";
-import { addItemToInventory, refreshBagPackets, buildSetAvatar } from "./inventory.js";
-import { endPShopIfActive } from "./pshop.js";
-import { mapExists, sanitizePlayerPos } from "./maps.js";
-import { type Player, players, send, broadcastMap, broadcastAll } from "./player.js";
-import { charAll, enterPlayer } from "./packets/char.js";
+} from "../skills/index.js";
+import { addItemToInventory, refreshBagPackets, buildSetAvatar } from "../inventory/index.js";
+import { endPShopIfActive } from "../pshop/index.js";
+import { mapExists, sanitizePlayerPos } from "../../maps.js";
+import { type Player, players, send, broadcastMap, broadcastAll } from "../../player.js";
+import { charAll, enterPlayer } from "../../packets/char.js";
 import {
   UPDATE_CHARACTERS_BY_ID,
   UPDATE_CHARACTERS_BY_ID_2,
@@ -27,7 +27,7 @@ import {
   UPDATE_CHARACTERS_BY_ID_6,
   UPDATE_CHARACTERS_BY_ID_7,
   UPDATE_CHARACTERS_BY_ID_8,
-} from "../db/queries/index.js";
+} from "../../../db/queries/index.js";
 import {
   leavePacket,
   notice,
@@ -36,7 +36,7 @@ import {
   sendVital,
   levelUpPacket,
   lvExpPacket,
-} from "./packets/ui.js";
+} from "../../packets/ui.js";
 
 export async function handleGm(p: Player, pkt: Buffer): Promise<void> {
   const cmd = readCString(pkt, 12, 60).trim();

@@ -4,7 +4,7 @@
  * Client:  PARTY_INVITE_REQ 0x9B, RESPONSES 0x9C, LEAVE 0x9F
  * Server:  PARTY_INVITE 0x9B, RESPONSES 0x9C, UPDATE 0x9D, HP 0xA1, DISMISS 0xA2
  */
-import { writeHeader, writeCString } from "../net/packet.js";
+import { writeHeader, writeCString } from "../../../net/packet.js";
 
 export type PartyMemberSnap = {
   charId: number;

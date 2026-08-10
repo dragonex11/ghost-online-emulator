@@ -4,14 +4,14 @@ import {
   buildBalance,
   buildWarehouse,
   deliverCashGifts,
-} from './cashshop.js';
+} from './features/cashshop/index.js';
 import {
   buildAllBags,
   buildEquip,
   buildEquip1,
   buildEquip2,
   buildSetAvatar,
-} from './inventory.js';
+} from './features/inventory/index.js';
 import { packetMagicOrDefault } from '../protocol/magic.js';
 import { type Player, send } from './player.js';
 

@@ -1,4 +1,4 @@
-import { initDb } from "./db.js";
+import { initDb } from "./db/index.js";
 import { config } from "./config.js";
 import { startLoginServer } from "./login/server.js";
 import { startChannelServer } from "./channel/server.js";
@@ -6,7 +6,7 @@ import { startFieldServer } from "./field/server.js";
 import { startMessengerServer } from "./messenger/server.js";
 
 async function main(): Promise<void> {
-  console.log("Ghost Online Node Server");
+  console.log("Ghost Online Emulator");
   await initDb();
   startLoginServer();
   startChannelServer();

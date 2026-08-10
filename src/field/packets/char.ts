@@ -1,8 +1,8 @@
 import type { RowDataPacket } from "mysql2";
 import { config } from "../../config.js";
-import { query } from "../../db.js";
+import { query } from "../../db/index.js";
 import { writeHeader, writeCString } from "../../net/packet.js";
-import { job3ToWireGuild } from "../skills.js";
+import { job3ToWireGuild } from "../features/skills/index.js";
 import { OP_FIELD_CHAR_ALL, OP_FIELD_ENTER_PLAYER } from "../../protocol/opcodes.js";
 import { SELECT_CHARACTERS_BY_ID, SELECT_EQUIP_BY_CHARID_7, SELECT_EQUIP_BY_CHARID_8, SELECT_PETS_BY_CID_AND_TYPE_2 } from "../../db/queries/index.js";
 

@@ -1,5 +1,5 @@
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../../db.js";
+import { query, execute } from "../../db/index.js";
 import { readCString } from "../../net/packet.js";
 import { decodePassword, encodePassword } from "../../login/passwordCodec.js";
 import { parseFieldInetCredentials } from "../../net/inetAuth.js";

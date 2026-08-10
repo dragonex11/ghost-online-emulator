@@ -1,20 +1,20 @@
 import type { RowDataPacket } from 'mysql2';
-import { execute, query } from '../../db.js';
+import { execute, query } from '../../db/index.js';
 import { readCString, writeCString, writeHeader } from '../../net/packet.js';
 import { packetMagicOrDefault } from '../../protocol/magic.js';
-import { applySpendRecover, spendRecoverEffect } from '../spend_effects.js';
+import { applySpendRecover, spendRecoverEffect } from '../features/spend/effects.js';
 import {
   activeBuffOrNull,
   applyEventBuff,
   isSpecialSpendItem,
   rollGachaBox,
-} from '../spend_boxes.js';
+} from '../features/spend/boxes.js';
 import {
   addItemToInventory,
   addPetToBag,
   removeInvQty,
   refreshBagPackets,
-} from '../inventory.js';
+} from '../features/inventory/index.js';
 import { type Player, broadcastAll, send } from '../player.js';
 import { notice, sendVital } from '../packets/ui.js';
 

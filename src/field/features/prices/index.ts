@@ -1,6 +1,6 @@
 import type { RowDataPacket } from "mysql2";
-import { query } from "../db.js";
-import { SELECT_ITEM_PRICES } from "../db/queries/index.js";
+import { query } from "../../../db/index.js";
+import { SELECT_ITEM_PRICES } from "../../../db/queries/index.js";
 
 let prices = new Map<number, number>();
 

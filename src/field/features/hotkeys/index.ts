@@ -1,7 +1,7 @@
 import type { RowDataPacket } from "mysql2";
-import { query, execute } from "../db.js";
-import { writeHeader } from "../net/packet.js";
-import { DELETE_SKILL_HOTKEYS_BY_CHARID_AND_KEYNAME, INSERT_SKILL_HOTKEYS, SELECT_SKILL_HOTKEYS_BY_CHARID } from "../db/queries/index.js";
+import { query, execute } from "../../../db/index.js";
+import { writeHeader } from "../../../net/packet.js";
+import { DELETE_SKILL_HOTKEYS_BY_CHARID_AND_KEYNAME, INSERT_SKILL_HOTKEYS, SELECT_SKILL_HOTKEYS_BY_CHARID } from "../../../db/queries/index.js";
 
 const KEYS = [
   "Z", "X", "C", "V", "B", "N",
